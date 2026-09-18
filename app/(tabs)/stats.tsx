@@ -1,342 +1,184 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { Text, useTheme } from 'react-native-paper';
-import Svg, { Circle } from 'react-native-svg';
+import { useCallback, useState } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 
-import { RankedBarItem, RankedBarList } from '@/components/RankedBarList';
 import {
-	getDecksUsedCounts,
-	getOverviewTotals,
-	getWinStatsByDeck,
-	type DeckWinStats,
-	type DeckUsageRow,
-	type OverviewTotals,
-	TagCount,
-	TurnOrderWinRate,
-	getOverviewWinReasons,
 	getOverviewLoseReasons,
+	getOverviewWinReasons,
 	getTurnOrderWinRate,
+	getWinStatsByDeck,
+	POD_SIZE,
+	type DeckWinStats,
+	type TagCount,
+	type TurnOrderWinRate,
 } from '@/lib/db';
+import { Txt } from '@/components/notebook/Hand';
+import { Rule, RuledPaper } from '@/components/notebook/RuledPaper';
+import { SectionTitle } from '@/components/notebook/SectionTitle';
+import { Tally } from '@/components/notebook/Tally';
+import { sessionNote } from '@/lib/marginNotes';
+import { fonts, ink, onRules, RULE_SPACING, screenPadding, wrapOnRules } from '@/lib/notebook';
 
-type ReasonMode = 'won' | 'lost';
+// Game-end tag labels, shortened to fit the win/lose columns.
+const SHORT_REASONS: Record<string, string> = {
+	'Combat damage': 'combat',
+	'Commander damage': 'cmdr. dmg',
+	'Combo kill': 'combo',
+	'Mill / decked out': 'mill',
+	'Alternate win condition': 'alt win',
+	'Direct damage / burn': 'burn',
+	'Poison / infect': 'poison',
+	Concession: 'concession',
+};
+
+const shortReason = (label: string) => SHORT_REASONS[label] ?? label.toLowerCase();
+
+// In a four-player pod an even share of wins is 25%; below that is written in red.
+const PAR_WIN_RATE = 100 / POD_SIZE;
 
 export default function StatsScreen() {
-	const theme = useTheme();
-
-	const [winStats, setWinStats] = useState<DeckWinStats[]>([]);
-	const [deckUsage, setDeckUsage] = useState<DeckUsageRow[]>([]);
-	const [totals, setTotals] = useState<OverviewTotals | null>(null);
+	const [deckStats, setDeckStats] = useState<DeckWinStats[]>([]);
+	const [seatRates, setSeatRates] = useState<TurnOrderWinRate[]>([]);
 	const [winReasons, setWinReasons] = useState<TagCount[]>([]);
 	const [loseReasons, setLoseReasons] = useState<TagCount[]>([]);
-	const [turnOrderRates, setTurnOrderRates] = useState<TurnOrderWinRate[]>([]);
-	const [reasonMode, setReasonMode] = useState<ReasonMode>('won');
 
-	useEffect(() => {
-		Promise.all([
-			getWinStatsByDeck(),
-			getDecksUsedCounts(),
-			getOverviewTotals(),
-			getOverviewWinReasons(),
-			getOverviewLoseReasons(),
-			getTurnOrderWinRate(),
-		]).then(([wins, usage, overview, winsByReason, losesByReason, seatRates]) => {
-			setWinStats(wins);
-			setDeckUsage(usage);
-			setTotals(overview);
-			setWinReasons(winsByReason);
-			setLoseReasons(losesByReason);
-			setTurnOrderRates(seatRates);
-		});
-	}, []);
-
-	const totalGames = useMemo(() => {
-		if (winStats.length > 0) {
-			return winStats.reduce((sum, deck) => sum + deck.games, 0);
-		}
-
-		return totals?.games_played ?? 0;
-	}, [winStats, totals]);
-
-	const totalWins = useMemo(() => winStats.reduce((sum, deck) => sum + deck.wins, 0), [winStats]);
-
-	const winRate = totalGames > 0 ? Math.round((totalWins / totalGames) * 100) : 0;
-	const losses = Math.max(totalGames - totalWins, 0);
-	const avgGameTurns = totals?.avg_turns ? Number(totals.avg_turns.toFixed(1)) : null;
-	const deckCount = deckUsage.length;
-
-	const topDecks = useMemo(() => {
-		return winStats
-			.map((deck) => {
-				const pct = deck.games ? Math.round((deck.wins / deck.games) * 100) : 0;
-
-				return {
-					id: deck.deck_id,
-					label: deck.name,
-					value: pct,
-					valueLabel: `${pct}%`,
-					countLabel: `${deck.games}`,
-				};
-			})
-			.sort((a, b) => b.value - a.value)
-			.slice(0, 4);
-	}, [winStats]);
-
-	const radius = 80;
-	const circumference = 2 * Math.PI * radius;
-	const dashOffset = circumference - (winRate / 100) * circumference;
-
-	const reasonGames = reasonMode === 'won' ? totalWins : losses;
-	const reasonData: RankedBarItem[] = (reasonMode === 'won' ? winReasons : loseReasons).map(
-		(reason) => {
-			return {
-				id: reason.tag_id,
-				label: reason.label,
-				value: reason.count,
-				valueLabel: `${reason.count}`,
-				countLabel: `${Math.round((reason.count / reasonGames) * 100)}%`,
-			};
-		},
+	// Tabs stay mounted, so reload on focus to pick up games logged since.
+	useFocusEffect(
+		useCallback(() => {
+			Promise.all([
+				getWinStatsByDeck(),
+				getTurnOrderWinRate(),
+				getOverviewWinReasons(),
+				getOverviewLoseReasons(),
+			]).then(([decks, seats, wins, losses]) => {
+				setDeckStats(decks);
+				setSeatRates(seats);
+				setWinReasons(wins);
+				setLoseReasons(losses);
+			});
+		}, []),
 	);
 
-	const turnOrderRows = useMemo(() => {
-		const base = [1, 2, 3, 4].map((seat) => {
-			const row = turnOrderRates.find((item) => item.turn_order === seat);
+	const totalGames = deckStats.reduce((sum, deck) => sum + deck.games, 0);
 
-			return { seat, games: row?.games ?? 0, wins: row?.wins ?? 0, winRate: row?.win_pct ?? 0 };
-		});
+	const seats = Array.from({ length: POD_SIZE }, (_, i) => {
+		const row = seatRates.find((item) => item.turn_order === i + 1);
+		return { seat: i + 1, wins: row?.wins ?? 0, winRate: Math.round(row?.win_pct ?? 0) };
+	});
+	const bestSeatRate = Math.max(...seats.map((seat) => seat.winRate));
 
-		return base;
-	}, [turnOrderRates]);
-
-	const maxTurnRate = Math.max(...turnOrderRows.map((item) => item.winRate), 0);
+	const deckRecords = deckStats
+		.map((deck) => ({
+			id: deck.deck_id,
+			name: deck.name,
+			wins: deck.wins,
+			losses: deck.games - deck.wins,
+			winRate: deck.games > 0 ? Math.round((deck.wins / deck.games) * 100) : 0,
+		}))
+		.sort((a, b) => b.winRate - a.winRate || b.wins - a.wins);
 
 	return (
-		<View style={[styles.root, { backgroundColor: theme.colors.background }]}>
-			<ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-				<View style={[styles.summaryCard, { backgroundColor: theme.colors.background }]}>
-					<View style={styles.donutWrap}>
-						<Svg width={220} height={220} viewBox='0 0 180 180'>
-							<Circle
-								cx='90'
-								cy='90'
-								r={radius}
-								stroke={theme.colors.surface}
-								strokeWidth={16}
-								fill='transparent'
-							/>
-							<Circle
-								cx='90'
-								cy='90'
-								r={radius}
-								stroke={theme.colors.primary}
-								strokeWidth={16}
-								fill='transparent'
-								strokeDasharray={circumference}
-								strokeDashoffset={dashOffset}
-								strokeLinecap='round'
-								transform='rotate(-90 90 90)'
-							/>
-						</Svg>
+		<ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+			<RuledPaper />
 
-						<View style={styles.donutCenter}>
-							<Text style={[styles.winPercent, { color: theme.colors.primary }]}>{winRate}%</Text>
-							<Text style={[styles.winRateLabel, { color: theme.colors.tertiary }]}>WIN RATE</Text>
-							<Text style={[styles.winRateMeta, { color: theme.colors.tertiary }]}>
-								{totalWins} W · {losses} L
-							</Text>
+			{totalGames === 0 ?
+				<Txt style={styles.empty}>nothing to count yet — write down a game first.</Txt>
+			:	<>
+					<SectionTitle>By seat</SectionTitle>
+					{seats.map((seat) => (
+						<View key={seat.seat} style={styles.row}>
+							<Txt style={styles.seatLabel}>seat {seat.seat}</Txt>
+							<View style={styles.tallies}>
+								<Tally count={seat.wins} seed={seat.seat} />
+							</View>
+							<Txt
+								style={[
+									styles.seatRate,
+									{ color: seat.winRate === bestSeatRate && bestSeatRate > 0 ? ink.blue : ink.ink },
+								]}>
+								{seat.winRate}%
+							</Txt>
 						</View>
-					</View>
-				</View>
+					))}
 
-				<View style={styles.metricRow}>
-					<View
-						style={[
-							styles.metricCard,
-							{ backgroundColor: theme.colors.surface, borderColor: theme.colors.outline },
-						]}>
-						<Text style={[styles.metricLabel, { color: theme.colors.tertiary }]}>GAMES</Text>
-						<Text style={styles.metricValue}>{totalGames}</Text>
-					</View>
-
-					<View
-						style={[
-							styles.metricCard,
-							{ backgroundColor: theme.colors.surface, borderColor: theme.colors.outline },
-						]}>
-						<Text style={[styles.metricLabel, { color: theme.colors.tertiary }]}>AVG GAME</Text>
-						<Text style={styles.metricValue}>
-							{avgGameTurns !== null ? `${Math.round(avgGameTurns)}` : '—'} Turns
-						</Text>
-					</View>
-
-					<View
-						style={[
-							styles.metricCard,
-							{ backgroundColor: theme.colors.surface, borderColor: theme.colors.outline },
-						]}>
-						<Text style={[styles.metricLabel, { color: theme.colors.tertiary }]}>DECKS</Text>
-						<Text style={styles.metricValue}>{deckCount}</Text>
-					</View>
-				</View>
-
-				<View
-					style={[
-						styles.sectionPanel,
-						{ backgroundColor: theme.colors.surface, borderColor: theme.colors.outline },
-					]}>
-					<Text style={[styles.sectionTitle, { color: theme.colors.tertiary }]}>BEST DECKS</Text>
-
-					{topDecks.length > 0 ?
-						<RankedBarList items={topDecks} barHeight={8} maxValue={100} />
-					:	<Text style={[styles.emptyText, { color: theme.colors.tertiary }]}>
-							Not enough data yet.
-						</Text>
-					}
-				</View>
-
-				<View
-					style={[
-						styles.sectionPanel,
-						{ backgroundColor: theme.colors.surface, borderColor: theme.colors.outline },
-					]}>
-					<View
-						style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-						<Text style={[styles.sectionTitle, { color: theme.colors.tertiary }]}>
-							GAME END REASONS
-						</Text>
-						<View
-							style={[
-								styles.segmentedControl,
-								{ backgroundColor: theme.colors.background, borderColor: theme.colors.outline },
-							]}>
-							{(['won', 'lost'] as const).map((mode) => {
-								const selected = reasonMode === mode;
-
-								return (
-									<Pressable
-										key={mode}
-										onPress={() => setReasonMode(mode)}
-										accessibilityRole='tab'
-										accessibilityState={{ selected }}
-										style={[styles.segment, selected && { backgroundColor: theme.colors.primary }]}>
-										<Text
-											style={[
-												styles.segmentText,
-												{ color: selected ? theme.colors.onPrimary : theme.colors.tertiary },
-											]}>
-											{mode === 'won' ? 'WON' : 'LOST'}
-										</Text>
-									</Pressable>
-								);
-							})}
+					<View style={styles.gap} />
+					<SectionTitle>Deck records</SectionTitle>
+					{deckRecords.map((deck, index) => (
+						<View key={deck.id} style={styles.row}>
+							<Txt style={styles.deckName} numberOfLines={1}>
+								{deck.name}
+							</Txt>
+							<Txt style={styles.record}>
+								{deck.wins} – {deck.losses}
+							</Txt>
+							<Txt
+								style={[
+									styles.deckRate,
+									{ color: deck.winRate < PAR_WIN_RATE ? ink.red : ink.blue },
+								]}>
+								{deck.winRate}%
+							</Txt>
+							{index < deckRecords.length - 1 && <Rule width={1.5} />}
 						</View>
+					))}
+
+					<View style={styles.gap} />
+					<View style={styles.columns}>
+						<ReasonColumn title='How I win' reasons={winReasons} color={ink.ink} />
+						<View style={styles.divider} />
+						<ReasonColumn title='How I lose' reasons={loseReasons} color={ink.red} />
 					</View>
 
-					{reasonData.length > 0 ?
-						<RankedBarList items={reasonData} barHeight={8} />
-					:	<Text style={[styles.emptyText, { color: theme.colors.tertiary }]}>
-							Not enough data yet.
-						</Text>
-					}
-				</View>
+					<View style={styles.gap} />
+					<Txt style={styles.note}>note: {sessionNote}</Txt>
+				</>
+			}
+		</ScrollView>
+	);
+}
 
-				<View
-					style={[
-						styles.sectionPanel,
-						{ backgroundColor: theme.colors.surface, borderColor: theme.colors.outline },
-					]}>
-					<Text style={[styles.sectionTitle, { color: theme.colors.tertiary }]}>
-						TURN ORDER ADVANTAGE
-					</Text>
-
-					<View style={styles.turnOrderList}>
-						{totalWins > 0 ?
-							turnOrderRows.map((seat) => {
-								const isTop = seat.winRate === maxTurnRate && maxTurnRate > 0;
-								return (
-									<View key={seat.seat} style={styles.turnSeatRow}>
-										<Text
-											style={[
-												styles.turnValue,
-												{ color: isTop ? theme.colors.primary : theme.colors.tertiary },
-											]}>
-											{seat.winRate}%
-										</Text>
-
-										<View
-											style={[styles.turnBarTrack, { backgroundColor: theme.colors.background }]}>
-											<View
-												style={[
-													styles.turnBarFill,
-													{
-														width: `${Math.max(seat.winRate, 8)}%`,
-														backgroundColor: isTop ? theme.colors.primary : theme.colors.tertiary,
-													},
-												]}
-											/>
-										</View>
-
-										<Text style={[styles.turnLabel, { color: theme.colors.tertiary }]}>
-											SEAT {seat.seat}
-										</Text>
-									</View>
-								);
-							})
-						:	<Text style={[styles.emptyText, { color: theme.colors.tertiary }]}>
-								Not enough data yet.
-							</Text>
-						}
+function ReasonColumn({ title, reasons, color }: { title: string; reasons: TagCount[]; color: string }) {
+	return (
+		<View style={styles.column}>
+			<SectionTitle color={color} size={22}>
+				{title}
+			</SectionTitle>
+			{reasons.length === 0 ?
+				<Txt style={styles.reasonLabel}>nothing yet</Txt>
+			:	reasons.map((reason) => (
+					<View key={reason.tag_id} style={styles.row}>
+						<Txt style={styles.reasonLabel} numberOfLines={1}>
+							{shortReason(reason.label)}
+						</Txt>
+						<Txt style={[styles.reasonCount, { color }]}>{reason.count}</Txt>
 					</View>
-				</View>
-			</ScrollView>
+				))
+			}
 		</View>
 	);
 }
 
 const styles = StyleSheet.create({
-	root: { flex: 1 },
-	scrollContent: { paddingHorizontal: 18, paddingTop: 16, paddingBottom: 24 },
-	summaryCard: { alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
-	donutWrap: {
-		width: 220,
-		height: 220,
-		alignItems: 'center',
-		justifyContent: 'center',
-		position: 'relative',
-	},
-	donutCenter: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
-	winPercent: { fontSize: 40, fontWeight: '700', letterSpacing: -1.2, lineHeight: 44 },
-	winRateLabel: { fontSize: 11, letterSpacing: 1.2, marginTop: 2 },
-	winRateMeta: { fontSize: 12, marginTop: 4, opacity: 0.9 },
-	metricRow: { flexDirection: 'row', gap: 10, marginBottom: 18 },
-	metricCard: {
-		flex: 1,
-		borderRadius: 0,
-		borderWidth: 1,
-		paddingHorizontal: 12,
-		paddingVertical: 12,
-		minHeight: 72,
-		justifyContent: 'center',
-	},
-	metricLabel: { fontSize: 10, letterSpacing: 1.2, marginBottom: 6 },
-	metricValue: { fontSize: 22, fontWeight: '700', letterSpacing: -0.6 },
-	sectionPanel: {
-		borderRadius: 0,
-		borderWidth: 1,
-		paddingHorizontal: 14,
-		paddingTop: 12,
-		paddingBottom: 10,
-		marginBottom: 18,
-	},
-	sectionTitle: { fontSize: 11, letterSpacing: 1.2, marginBottom: 16, fontWeight: '700' },
-	emptyText: { fontSize: 12 },
-	turnOrderList: { gap: 10 },
-	turnSeatRow: { gap: 6 },
-	turnValue: { fontSize: 30, fontWeight: '700', lineHeight: 32 },
-	turnBarTrack: { width: '100%', height: 10, borderRadius: 999, overflow: 'hidden' },
-	turnBarFill: { height: '100%', borderRadius: 999 },
-	turnLabel: { fontSize: 10, letterSpacing: 1.2, textTransform: 'uppercase' },
-	segmentedControl: { flexDirection: 'row', borderWidth: 1, marginBottom: 16 },
-	segment: { alignItems: 'center', justifyContent: 'center', paddingVertical: 6 },
-	segmentText: { fontSize: 11, fontWeight: '700', paddingHorizontal: 12 },
+	scroll: { flex: 1, backgroundColor: ink.paper },
+	content: { flexGrow: 1, ...screenPadding, paddingBottom: RULE_SPACING * 2 },
+	// Every block is a whole number of ruled lines tall, so text stays on the rules.
+	gap: { height: RULE_SPACING },
+	row: { flexDirection: 'row', alignItems: 'flex-start', height: RULE_SPACING },
+	empty: { ...onRules(fonts.kalam300, 14), color: ink.faint },
+
+	seatLabel: { width: 72, ...onRules(fonts.kalam300, 15), color: ink.body },
+	tallies: { flex: 1, overflow: 'hidden' },
+	seatRate: { width: 64, ...onRules(fonts.caveat700, 26) },
+
+	deckName: { flex: 1, ...onRules(fonts.caveat600, 22), color: ink.ink },
+	record: { width: 64, textAlign: 'right', ...onRules(fonts.caveat500, 20), color: ink.body },
+	deckRate: { width: 60, textAlign: 'right', ...onRules(fonts.caveat700, 22) },
+
+	columns: { flexDirection: 'row' },
+	column: { flex: 1 },
+	divider: { width: 1.5, marginHorizontal: 14, backgroundColor: ink.rule },
+	reasonLabel: { flex: 1, ...onRules(fonts.kalam300, 14), color: ink.body },
+	reasonCount: { width: 32, textAlign: 'right', ...onRules(fonts.caveat600, 20) },
+
+	note: { ...wrapOnRules(fonts.caveat500, 18), color: ink.red },
 });

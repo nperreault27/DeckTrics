@@ -18,6 +18,14 @@ const OPPONENT_DECKS = [
 
 const GAME_COUNT = 24;
 
+// The user wins from seat 1 exactly this many times (every fourth game, so keep it <= GAME_COUNT / 4),
+// giving a known count to check the seat tallies against.
+const SEAT_ONE_WINS = 6;
+
+// USER_DECKS[0] wins exactly this many games (every fourth game, so keep it <= GAME_COUNT / 4)
+// and loses every other game it plays, giving a known count to check tallies and records.
+const STAR_DECK_WINS = 6;
+
 function makeRandom(seed: number) {
 	return () => {
 		seed = (seed * 1664525 + 1013904223) % 4294967296;
@@ -26,7 +34,7 @@ function makeRandom(seed: number) {
 }
 
 export async function seedTestData() {
-	const random = makeRandom(42);
+	const random = makeRandom(24);
 	const pick = <T,>(items: T[]) => items[Math.floor(random() * items.length)];
 
 	const existing = new Map((await listDecks()).map((deck) => [deck.name, deck.id]));
@@ -46,12 +54,16 @@ export async function seedTestData() {
 
 		// User in one random seat, three distinct opponents in the rest.
 		const opponents = [...opponentDeckIds].sort(() => random() - 0.5).slice(0, POD_SIZE - 1);
-		const userSeat = Math.floor(random() * POD_SIZE);
+		const seatOneWin = g % 4 === 0 && g / 4 < SEAT_ONE_WINS;
+		const userSeat = seatOneWin ? 0 : Math.floor(random() * POD_SIZE);
 		const deckIds = [...opponents];
 		deckIds.splice(userSeat, 0, pick(userDeckIds));
 
 		// Winner survives to the end; losers are knocked out earlier, later knockout = better placement.
-		const winnerSeat = Math.floor(random() * POD_SIZE);
+		let winnerSeat = seatOneWin ? 0 : Math.floor(random() * POD_SIZE);
+		if (!seatOneWin && userSeat === 0 && winnerSeat === 0) {
+			winnerSeat = 1 + Math.floor(random() * (POD_SIZE - 1));
+		}
 		const knockoutTurns = deckIds.map((_, i) =>
 			i === winnerSeat ? totalTurns : Math.max(3, totalTurns - Math.floor(random() * 5)),
 		);

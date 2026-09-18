@@ -20,7 +20,10 @@ export default function TabsLayout() {
 				name='index'
 				options={{ title: 'home', sceneStyle: { backgroundColor: ink.paper } }}
 			/>
-			<Tabs.Screen name='stats' options={{ title: 'stats' }} />
+			<Tabs.Screen
+				name='stats'
+				options={{ title: 'stats', sceneStyle: { backgroundColor: ink.paper } }}
+			/>
 			<Tabs.Screen name='decks' options={{ title: 'decks' }} />
 		</Tabs>
 	);

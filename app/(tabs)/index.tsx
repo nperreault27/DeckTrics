@@ -8,6 +8,7 @@ import { GameListItem } from '@/lib/db';
 import { seedTestData } from '@/lib/seedTestData';
 import { Txt } from '@/components/notebook/Hand';
 import { RuledPaper, Rule } from '@/components/notebook/RuledPaper';
+import { SectionTitle } from '@/components/notebook/SectionTitle';
 import {
 	fonts,
 	handDrawnRadius,
@@ -96,16 +97,9 @@ export default function HomeScreen() {
 				<RefreshControl refreshing={loading} onRefresh={loadGames} tintColor={ink.blue} />
 			}>
 			<RuledPaper />
-
-			{/* Every block below is a whole number of ruled lines tall, so text stays on the rules. */}
 			<Txt style={labelText}>Win rate</Txt>
 			<View style={styles.hero}>
 				<Txt style={styles.heroNumber}>{winRate}%</Txt>
-				<View style={styles.fraction}>
-					<Txt style={styles.fractionText}>{totalWins}</Txt>
-					<Txt style={styles.fractionText}>{totalGames}</Txt>
-					<View style={styles.fractionBar} />
-				</View>
 			</View>
 
 			<View style={styles.statRow}>
@@ -120,12 +114,7 @@ export default function HomeScreen() {
 			</Pressable>
 
 			<View style={styles.sectionHead}>
-				<View>
-					<Txt style={styles.sectionTitle} numberOfLines={1}>
-						Games played
-					</Txt>
-					<Rule color={ink.ink} />
-				</View>
+				<SectionTitle>Games played</SectionTitle>
 				{!showAll && totalGames > RECENT_COUNT && (
 					<Pressable style={styles.allLink} onPress={() => setShowAll(true)}>
 						<Txt style={styles.allLinkText}>all {totalGames}</Txt>
@@ -198,7 +187,6 @@ const styles = StyleSheet.create({
 	scroll: { flex: 1, backgroundColor: ink.paper },
 	content: { flexGrow: 1, ...screenPadding, paddingBottom: RULE_SPACING * 2 },
 	hero: { flexDirection: 'row', height: RULE_SPACING * 2 },
-	// Nudged up off the rule so the big numerals don't crowd the line below.
 	heroNumber: {
 		...onRules(fonts.caveat700, 82, 2),
 		transform: [{ translateY: -3 }],
@@ -206,7 +194,6 @@ const styles = StyleSheet.create({
 	},
 	fraction: { marginLeft: 4 - overhang(82), alignItems: 'center' },
 	fractionText: { ...onRules(fonts.caveat500, 24), paddingHorizontal: 3, color: ink.ink },
-	// Drawn between the numerator's and denominator's lines.
 	fractionBar: {
 		position: 'absolute',
 		left: 0,
@@ -218,7 +205,6 @@ const styles = StyleSheet.create({
 	statRow: { flexDirection: 'row', gap: 22 - overhang(30) },
 	statValue: { ...onRules(fonts.caveat700, 30), color: ink.ink },
 	logButton: { marginTop: RULE_SPACING, height: RULE_SPACING * 2, alignItems: 'center' },
-	// Outline sits on the rules above and below; the label is written on the middle rule.
 	logButtonOutline: {
 		...StyleSheet.absoluteFillObject,
 		...handDrawnRadius,
@@ -232,11 +218,9 @@ const styles = StyleSheet.create({
 		alignItems: 'flex-start',
 		marginTop: RULE_SPACING,
 	},
-	sectionTitle: { ...onRules(fonts.caveat600, 28), color: ink.ink },
 	allLink: { flexDirection: 'row', alignItems: 'flex-start', gap: 2 },
 	allLinkText: { ...onRules(fonts.caveat600, 21), color: ink.blue },
 	gameRow: { flexDirection: 'row' },
-	// 44px column per spec, plus Hand's trailing space (taken back out of the gap to the body).
 	placement: { width: 44 + overhang(30), ...onRules(fonts.caveat700, 30) },
 	gameBody: { flex: 1, marginLeft: 12 - overhang(30) },
 	deckName: { ...onRules(fonts.caveat600, 24), color: ink.ink },
