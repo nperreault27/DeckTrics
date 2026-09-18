@@ -5,8 +5,7 @@ import { Autocomplete, AutocompleteScrollView } from 'react-native-paper-autocom
 import { useEffect, useRef, useState } from 'react';
 import { fetchSuggestions } from '@/api/scryfall';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Circle } from 'victory-native';
-import { Svg } from 'react-native-svg';
+import { Svg, Circle } from 'react-native-svg';
 
 export type SeatFormValue = {
 	index: number;
