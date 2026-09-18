@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { FlatList, TextInput as RNTextInput, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Text, Button, HelperText } from 'react-native-paper';
 import { useDecksStore } from '@/store/useDecksStore';
@@ -7,7 +7,6 @@ import { useGamesStore } from '@/store/useGamesStore';
 import { listTagsByCategory, Tag, POD_SIZE, SeatInput } from '@/lib/db';
 import { SeatForm, SeatFormValue } from '@/components/SeatForm';
 import DraggableFlatList from 'react-native-draggable-flatlist';
-import { Pressable } from 'react-native-gesture-handler';
 import { TurnInputScreen } from '@/components/TurnInputScreen';
 import { PostGameInputScreen } from '@/components/PostGameInputScreen';
 
@@ -60,7 +59,6 @@ export default function NewGameScreen() {
 
 	const updateSeat = (value: SeatFormValue) => {
 		setSeats((prev) => prev.map((s) => (value.index === s.index ? value : s)));
-		console.log('updated');
 	};
 
 	const handleCreateDeck = async (name: string, commander: string) => {
@@ -72,7 +70,7 @@ export default function NewGameScreen() {
 		setError(null);
 		setSubmitting(true);
 
-		const seatInputs: SeatInput[] = seats.map((s, i) => {
+		const seatInputs: SeatInput[] = seats.map((s) => {
 			const placement =
 				s.is_winner ? 1 : (
 					2 +
@@ -128,7 +126,6 @@ export default function NewGameScreen() {
 			return;
 		}
 		setError(null);
-		seats.forEach;
 		setInputStage('postgame');
 	};
 
@@ -209,12 +206,4 @@ export default function NewGameScreen() {
 
 const styles = StyleSheet.create({
 	container: { padding: 16, paddingBottom: 48 },
-	label: { fontSize: 12, marginBottom: 6 },
-	input: {
-		borderWidth: 1,
-		borderRadius: 8,
-		paddingHorizontal: 12,
-		paddingVertical: 8,
-		marginBottom: 20,
-	},
 });

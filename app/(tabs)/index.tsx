@@ -1,10 +1,9 @@
 import { useEffect } from 'react';
 import { View, FlatList, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
-import { Text, Button, Surface, Card, useTheme } from 'react-native-paper';
+import { Text, Button, Card, useTheme } from 'react-native-paper';
 import { useGamesStore } from '@/store/useGamesStore';
 import { LinearGradient } from 'expo-linear-gradient';
-import Ionicons from '@expo/vector-icons/Ionicons';
 import Svg, { Path } from 'react-native-svg';
 
 const getPlacementText = (placement: number) => {
@@ -128,10 +127,8 @@ const styles = StyleSheet.create({
 		borderRadius: 0,
 	},
 	headerCard: { height: 180, justifyContent: 'center', padding: 16, gap: 16 },
-	navButton: { flex: 1 },
 	logButton: { marginBottom: 16, borderRadius: 4, alignContent: 'space-between' },
 	list: { paddingBottom: 24, gap: 8 },
-	row: { paddingVertical: 12 },
 	meta: { fontSize: 12, marginTop: 2 },
 	empty: { textAlign: 'center', marginTop: 40 },
 	metricsRow: { flexDirection: 'row', gap: 16 },

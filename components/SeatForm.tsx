@@ -1,10 +1,9 @@
-import { View, TextInput as RNTextInput, StyleSheet, Pressable } from 'react-native';
-import { Text, Switch, useTheme } from 'react-native-paper';
-import { Deck, Tag } from '@/lib/db';
+import { View, StyleSheet, Pressable } from 'react-native';
+import { Text, useTheme } from 'react-native-paper';
+import { Deck } from '@/lib/db';
 import { Autocomplete, AutocompleteScrollView } from 'react-native-paper-autocomplete';
 import { useEffect, useRef, useState } from 'react';
 import { fetchSuggestions } from '@/api/scryfall';
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { Svg, Circle } from 'react-native-svg';
 
 export type SeatFormValue = {
@@ -148,20 +147,4 @@ const styles = StyleSheet.create({
 		borderBottomColor: '#666',
 		flexDirection: 'row',
 	},
-	title: { marginBottom: 8 },
-	row: {
-		flexDirection: 'row',
-		justifyContent: 'space-between',
-		alignItems: 'center',
-		marginVertical: 10,
-	},
-	input: {
-		borderWidth: 1,
-		borderColor: '#ccc',
-		borderRadius: 8,
-		paddingHorizontal: 12,
-		paddingVertical: 8,
-		marginBottom: 8,
-	},
-	label: { fontSize: 12, color: '#666', marginTop: 8, marginBottom: 6 },
 });

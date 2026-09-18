@@ -2,13 +2,6 @@ import { MD3DarkTheme } from 'react-native-paper';
 
 export type ThemeName = 'mythic' | 'rare' | 'uncommon' | 'common';
 
-export const themeNames: ThemeName[] = [
-  'mythic',
-  'rare',
-  'uncommon',
-  'common',
-];
-
 export const themes: Record<ThemeName, typeof MD3DarkTheme> = {
   mythic: {
     ...MD3DarkTheme,

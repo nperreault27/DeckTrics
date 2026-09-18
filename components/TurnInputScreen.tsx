@@ -34,7 +34,6 @@ export const TurnInputScreen = (props: Props) => {
 		});
 		setTotalTurns(String(turn));
 	};
-	console.log(seats);
 	return (
 		<ScrollView bounces={false} keyboardShouldPersistTaps='handled'>
 			<View style={styles.flexGrid}>
@@ -94,11 +93,9 @@ export const TurnInputScreen = (props: Props) => {
 									disabled={parseInt(seat.endGameTurn) < turn}
 									menuContentStyle={styles.menuContent}
 									onSelect={(value) => {
-										console.log(value);
 										if (value) {
 											updateSeats({ ...seat, endGameTurn: String(turn), eliminationReason: value });
 										} else {
-											console.log(value);
 											updateSeats({ ...seat, endGameTurn: '', eliminationReason: '' });
 										}
 									}}

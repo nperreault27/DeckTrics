@@ -1,8 +1,7 @@
 import { Tag } from '@/lib/db';
 import { SeatFormValue } from './SeatForm';
 import { Button, HelperText } from 'react-native-paper';
-import { useState } from 'react';
-import { View, Text, ScrollView } from 'react-native';
+import { Text, ScrollView } from 'react-native';
 
 type Props = {
 	updateSeat: (value: SeatFormValue) => void;

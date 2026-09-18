@@ -6,7 +6,7 @@ commentary — plus stats derived from that log.
 
 Built with expo-router (file-based routing), expo-sqlite (local database),
 zustand (state), React Native Paper (UI components), and
-react-native-gifted-charts (bar / pie / radar / line charts).
+victory-native + react-native-svg (charts).
 
 ## What's included
 
@@ -16,8 +16,6 @@ react-native-gifted-charts (bar / pie / radar / line charts).
   wrapping the DB layer
 - `components/AutocompleteSearch.tsx` — Paper-based autocomplete, extended
   with an optional "+ Add \<query\>" row for creating a new deck inline
-- `components/TagChipGroup.tsx` — chip-based tag picker, single-select
-  (win condition / elimination reason) or multi-select (comment tags)
 - `components/SeatForm.tsx` — one player's inputs within the log-a-game form
 - `app/index.tsx` — game log (list of past games) + nav to Decks / Stats
 - `app/new-game.tsx` — log a new game: total turns + 4 seats
@@ -107,26 +105,12 @@ free-for-all and multiple players share a pod.
 ## Stats implemented
 
 **Overview** (`app/stats.tsx`): win % by deck (bar), decks used (pie),
-placements by turn order, avg/total turns, games played over time (bar),
-featured deck (highest win rate, min. 3 games played).
+placements by turn order, avg/total turns.
 
 **Per deck** (`app/decks/[id].tsx`): win rate by turn order (bar), avg
-turns to win/lose, games played/won over time (2-line chart — see note
-below), post-game comment tags (radar), ways this deck wins / loses (from
-`win_condition_id` / `elimination_reason_id`), best/worst matchups.
-
-### Note on the 2-line chart
-
-`react-native-gifted-charts`'s `LineChart` takes a second series via the
-`data2` prop (with `color1` / `color2` for each line's color) — confirmed
-directly against the library's shipped type definitions rather than
-assumed, since this isn't obvious from the main docs.
-
-### Note on the radar chart
-
-`RadarChart` takes a flat `data: number[]` (one value per axis) and a
-matching `labels: string[]` — also confirmed against the library's type
-definitions.
+turns to win/lose, games played/won over time, post-game comment tags,
+ways this deck wins / loses (from `win_condition_id` /
+`elimination_reason_id`), best/worst matchups.
 
 ## 1. Install
 

@@ -1,5 +1,6 @@
-import { Image, Pressable } from 'react-native';
-import { Menu } from 'react-native-paper';
+import { Pressable } from 'react-native';
+import { Menu, useTheme } from 'react-native-paper';
+import Svg, { G, Rect } from 'react-native-svg';
 import { ThemeName, themes } from '@/lib/themes';
 import { useThemeStore } from '@/store/useThemeStore';
 import { useState } from 'react';
@@ -35,57 +36,18 @@ export function ThemePicker() {
 	);
 }
 
-import Svg, { G, Rect } from 'react-native-svg';
-import { useTheme } from 'react-native-paper';
-
-function ThemeIcon({ size = 56, isCommon }: { size?: number; isCommon?: boolean }) {
+function ThemeIcon({ size = 56 }: { size?: number }) {
 	const theme = useTheme();
 
 	return (
 		<Svg width={size} height={size} viewBox='0 0 108 108'>
 			<G transform='translate(20.04 20.68) scale(0.6591)'>
-				<Rect
-					x='8'
-					y='26'
-					width='14'
-					height='48'
-					fill={isCommon ? 'white' : theme.colors.primaryContainer}
-				/>
-				<Rect
-					x='25'
-					y='14'
-					width='14'
-					height='60'
-					fill={isCommon ? 'white' : theme.colors.primary}
-				/>
-				<Rect
-					x='43'
-					y='4'
-					width='14'
-					height='70'
-					fill={isCommon ? 'white' : theme.colors.secondary}
-				/>
-				<Rect
-					x='61'
-					y='14'
-					width='14'
-					height='60'
-					fill={isCommon ? 'white' : theme.colors.primary}
-				/>
-				<Rect
-					x='78'
-					y='26'
-					width='14'
-					height='48'
-					fill={isCommon ? 'white' : theme.colors.primaryContainer}
-				/>
-				<Rect
-					x='8'
-					y='78'
-					width='84'
-					height='14'
-					fill={isCommon ? 'white' : theme.colors.onPrimaryContainer}
-				/>
+				<Rect x='8' y='26' width='14' height='48' fill={theme.colors.primaryContainer} />
+				<Rect x='25' y='14' width='14' height='60' fill={theme.colors.primary} />
+				<Rect x='43' y='4' width='14' height='70' fill={theme.colors.secondary} />
+				<Rect x='61' y='14' width='14' height='60' fill={theme.colors.primary} />
+				<Rect x='78' y='26' width='14' height='48' fill={theme.colors.primaryContainer} />
+				<Rect x='8' y='78' width='84' height='14' fill={theme.colors.onPrimaryContainer} />
 			</G>
 		</Svg>
 	);

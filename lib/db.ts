@@ -69,7 +69,7 @@ const COMMENT_TAGS = [
 let dbInstance: SQLite.SQLiteDatabase | null = null;
 let dbInitialization: Promise<SQLite.SQLiteDatabase> | null = null;
 
-export function getDb(): Promise<SQLite.SQLiteDatabase> {
+function getDb(): Promise<SQLite.SQLiteDatabase> {
   if (dbInstance) {
       return Promise.resolve(dbInstance);
   }
@@ -206,7 +206,6 @@ export async function createDeck(name: string, isUsers: boolean, commander?: str
     'INSERT INTO decks (name, commander, is_users) VALUES (?, ?, ?)',
     [name, commander ?? null, isUsers ? 1 : 0]
   );
-  console.log('Created deck with ID:', result.lastInsertRowId);
   return result.lastInsertRowId;
 }
 
@@ -376,31 +375,6 @@ export async function getOverviewTotals(): Promise<OverviewTotals> {
     FROM games
   `);
   return row ?? { avg_turns: null, total_turns: null, games_played: 0 };
-}
-
-export type MonthlyCount = { month: string; count: number };
-
-export async function getGamesPlayedByMonth(): Promise<MonthlyCount[]> {
-  const db = await getDb();
-  return db.getAllAsync<MonthlyCount>(`
-    SELECT strftime('%Y-%m', played_at) AS month, COUNT(*) AS count
-    FROM games
-    GROUP BY month
-    ORDER BY month ASC
-  `);
-}
-
-export type FeaturedDeck = DeckWinStats & { win_pct: number };
-
-// Highest win rate among decks with at least `minGames` played (default 3,
-// per your call on the featured-deck threshold).
-export async function getFeaturedDeck(minGames = 3): Promise<FeaturedDeck | null> {
-  const stats = await getWinStatsByDeck();
-  const qualifying = stats
-    .filter((s) => s.games >= minGames)
-    .map((s) => ({ ...s, win_pct: s.wins / s.games }))
-    .sort((a, b) => b.win_pct - a.win_pct);
-  return qualifying[0] ?? null;
 }
 
 // --- Per-deck stats ----------------------------------------------------

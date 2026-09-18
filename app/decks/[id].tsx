@@ -52,11 +52,6 @@ export default function DeckStatsScreen() {
 	const [monthTooltipPosition, setMonthTooltipPosition] = useState<{ x: number; y: number } | null>(
 		null,
 	);
-	const [selectedComment, setSelectedComment] = useState<number | null>(null);
-	const [commentTooltipPosition, setCommentTooltipPosition] = useState<{
-		x: number;
-		y: number;
-	} | null>(null);
 	const [selectedWinReason, setSelectedWinReason] = useState<number | null>(null);
 	const [winReasonTooltipPosition, setWinReasonTooltipPosition] = useState<{
 		x: number;
@@ -784,6 +779,5 @@ const styles = StyleSheet.create({
 		elevation: 6,
 	},
 	tooltipText: { color: '#fff', fontSize: 12 },
-	listRow: { paddingVertical: 4, fontSize: 14 },
 	empty: { color: '#888', fontSize: 13 },
 });

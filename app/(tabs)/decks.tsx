@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, FlatList, Pressable, StyleSheet, useWindowDimensions } from 'react-native';
+import { View, FlatList, Pressable, StyleSheet } from 'react-native';
 import { Link } from 'expo-router';
 import { Text, TextInput, Button, Modal, Portal, useTheme } from 'react-native-paper';
 import { Autocomplete, AutocompleteScrollView } from 'react-native-paper-autocomplete';
@@ -82,7 +82,6 @@ export default function DecksScreen() {
 
 	const myDecks = decks.filter((deck) => deck.isUsers);
 	const genericDecks = decks.filter((deck) => !deck.isUsers);
-	console.log(genericDecks.length);
 
 	return (
 		<View style={styles.container}>
