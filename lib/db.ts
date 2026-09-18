@@ -27,15 +27,20 @@ export type SeatInput = {
 
 export type NewGameInput = {
   totalTurns: number;
-  seats: SeatInput[]; 
+  seats: SeatInput[];
+  playedAt?: string;
 };
 
 export type GameListItem = {
   id: number;
+  seat_id: number;
   played_at: string;
   total_turns: number;
   deck_name: string;
   placement: number;
+  turn_order: number;
+  eliminated_turn: number | null;
+  end_reason: string | null;
 };
 
 export const POD_SIZE = 4;
@@ -230,8 +235,8 @@ export async function createGame(input: NewGameInput): Promise<number> {
 
   await db.withTransactionAsync(async () => {
     const gameResult = await db.runAsync(
-      'INSERT INTO games (total_turns) VALUES (?)',
-      [input.totalTurns]
+      "INSERT INTO games (total_turns, played_at) VALUES (?, COALESCE(?, datetime('now')))",
+      [input.totalTurns, input.playedAt ?? null]
     );
     gameId = gameResult.lastInsertRowId;
 
@@ -267,10 +272,14 @@ export async function createGame(input: NewGameInput): Promise<number> {
 export async function listGames(): Promise<GameListItem[]> {
   const db = await getDb();
   return db.getAllAsync<GameListItem>(`
-    SELECT g.id, g.played_at, g.total_turns, d.name AS deck_name, gp.placement as placement
+    SELECT
+      g.id, gp.id AS seat_id, g.played_at, g.total_turns, d.name AS deck_name,
+      gp.placement, gp.turn_order, gp.eliminated_turn,
+      t.label AS end_reason
     FROM games g
     JOIN game_players gp ON gp.game_id = g.id
     JOIN decks d ON d.id = gp.deck_id
+    LEFT JOIN tags t ON t.id = COALESCE(gp.win_condition_id, gp.elimination_reason_id)
     WHERE d.is_users = 1
     ORDER BY g.played_at DESC
   `);
@@ -447,9 +456,6 @@ export async function getDeckGamesPlayedWonByMonth(deckId: number): Promise<Mont
 
 export type Matchup = { opponent_deck_id: number; opponent_deck_name: string; games: number; wins: number };
 
-// Note: this counts games where the two decks shared a pod, not 1v1
-// results - Commander is free-for-all, so "matchup" here means "how this
-// deck performed in games that included that opponent," not a head-to-head.
 export async function getDeckMatchups(deckId: number): Promise<Matchup[]> {
   const db = await getDb();
   return db.getAllAsync<Matchup>(
