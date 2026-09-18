@@ -386,6 +386,15 @@ export async function getOverviewTotals(): Promise<OverviewTotals> {
   return row ?? { avg_turns: null, total_turns: null, games_played: 0 };
 }
 
+// Games each deck has appeared in, keyed by deck id.
+export async function getDeckGameCounts(): Promise<Record<number, number>> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<{ deck_id: number; count: number }>(
+    'SELECT deck_id, COUNT(*) AS count FROM game_players GROUP BY deck_id'
+  );
+  return Object.fromEntries(rows.map((row) => [row.deck_id, row.count]));
+}
+
 // --- Per-deck stats ----------------------------------------------------
 
 export async function getDeckWinRateByTurnOrder(deckId: number): Promise<TurnOrderWinRate[]> {

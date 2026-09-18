@@ -32,6 +32,14 @@ export const handDrawnRadius = {
 	borderBottomLeftRadius: 11,
 };
 
+// Smaller variant for chips and small boxes.
+export const handDrawnRadiusSmall = {
+	borderTopLeftRadius: 13,
+	borderTopRightRadius: 8,
+	borderBottomRightRadius: 15,
+	borderBottomLeftRadius: 7,
+};
+
 export const screenPadding = { paddingLeft: 26, paddingRight: 20 };
 
 // Vertical font metrics (hhea, as a fraction of font size) from the bundled TTFs.

@@ -17,21 +17,8 @@ import { Rule, RuledPaper } from '@/components/notebook/RuledPaper';
 import { SectionTitle } from '@/components/notebook/SectionTitle';
 import { Tally } from '@/components/notebook/Tally';
 import { sessionNote } from '@/lib/marginNotes';
+import { shortReason } from '@/lib/reasons';
 import { fonts, ink, onRules, RULE_SPACING, screenPadding, wrapOnRules } from '@/lib/notebook';
-
-// Game-end tag labels, shortened to fit the win/lose columns.
-const SHORT_REASONS: Record<string, string> = {
-	'Combat damage': 'combat',
-	'Commander damage': 'cmdr. dmg',
-	'Combo kill': 'combo',
-	'Mill / decked out': 'mill',
-	'Alternate win condition': 'alt win',
-	'Direct damage / burn': 'burn',
-	'Poison / infect': 'poison',
-	Concession: 'concession',
-};
-
-const shortReason = (label: string) => SHORT_REASONS[label] ?? label.toLowerCase();
 
 // In a four-player pod an even share of wins is 25%; below that is written in red.
 const PAR_WIN_RATE = 100 / POD_SIZE;

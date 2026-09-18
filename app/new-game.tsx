@@ -1,209 +1,148 @@
 import { useEffect, useState } from 'react';
-import { StyleSheet } from 'react-native';
+import { BackHandler, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Text, Button, HelperText } from 'react-native-paper';
 import { useDecksStore } from '@/store/useDecksStore';
 import { useGamesStore } from '@/store/useGamesStore';
-import { listTagsByCategory, Tag, POD_SIZE, SeatInput } from '@/lib/db';
-import { SeatForm, SeatFormValue } from '@/components/SeatForm';
-import DraggableFlatList from 'react-native-draggable-flatlist';
-import { TurnInputScreen } from '@/components/TurnInputScreen';
-import { PostGameInputScreen } from '@/components/PostGameInputScreen';
+import { getDeckGameCounts, listTagsByCategory, POD_SIZE, SeatInput, Tag } from '@/lib/db';
+import { ink } from '@/lib/notebook';
+import { EntryHead } from '@/components/log-game/EntryHead';
+import { SeatsStep } from '@/components/log-game/SeatsStep';
+import { TurnsStep } from '@/components/log-game/TurnsStep';
+import { AfterStep } from '@/components/log-game/AfterStep';
+import { emptySeat, placementOf, Seat } from '@/components/log-game/model';
 
-const emptySeat: SeatFormValue = {
-	index: 0,
-	deckId: null,
-	deckName: '',
-	placement: null,
-	is_winner: false,
-	endGameTurn: '',
-	winCondition: '',
-	eliminationReason: '',
-	commentTagIds: [],
-	isUser: false,
-};
-
-type Stage = 'setup' | 'midgame' | 'postgame';
+const STEPS = [
+	{ key: 'seats', label: 'new entry' },
+	{ key: 'turns', label: 'in progress' },
+	{ key: 'after', label: 'after the game' },
+] as const;
 
 export default function NewGameScreen() {
 	const router = useRouter();
 	const { decks, loadDecks, addDeck } = useDecksStore();
 	const { logGame } = useGamesStore();
 
-	const [inputStage, setInputStage] = useState<Stage>('setup');
-	const [totalTurns, setTotalTurns] = useState('');
-	const [seats, setSeats] = useState<SeatFormValue[]>(
-		Array.from({ length: POD_SIZE }, (_, index) => ({
-			...emptySeat,
-			index: index + 1,
-			isUser: index === 0,
-		})),
-	);
+	const [step, setStep] = useState(0);
+	const [seats, setSeats] = useState<Seat[]>(() => Array.from({ length: POD_SIZE }, (_, i) => emptySeat(i, i === 0)));
+	const [turn, setTurn] = useState(1);
+	const [commentTagIds, setCommentTagIds] = useState<number[]>([]);
 	const [gameEndReasons, setGameEndReasons] = useState<Tag[]>([]);
 	const [commentTags, setCommentTags] = useState<Tag[]>([]);
+	const [gameCounts, setGameCounts] = useState<Record<number, number>>({});
 	const [error, setError] = useState<string | null>(null);
-	const [submitting, setSubmitting] = useState(false);
+	const [saving, setSaving] = useState(false);
 
 	useEffect(() => {
-		const loadData = async () => {
-			await Promise.all([
-				loadDecks(),
-				listTagsByCategory('game_end_reason').then(setGameEndReasons),
-				listTagsByCategory('comment').then(setCommentTags),
-			]);
-		};
-		loadData().catch((error) => {
-			console.error('Failed to load new game data:', error);
-		});
+		Promise.all([
+			loadDecks(),
+			listTagsByCategory('game_end_reason').then(setGameEndReasons),
+			listTagsByCategory('comment').then(setCommentTags),
+			getDeckGameCounts().then(setGameCounts),
+		]).catch((e) => console.error('Failed to load new game data:', e));
 	}, []);
 
-	const updateSeat = (value: SeatFormValue) => {
-		setSeats((prev) => prev.map((s) => (value.index === s.index ? value : s)));
-	};
-
-	const handleCreateDeck = async (name: string, commander: string) => {
-		const id = await addDeck(name, commander);
-		return { id, name };
-	};
-
-	const handleSubmit = async () => {
+	const goBack = () => {
 		setError(null);
-		setSubmitting(true);
+		if (step > 0) setStep(step - 1);
+		else router.back();
+	};
 
-		const seatInputs: SeatInput[] = seats.map((s) => {
-			const placement =
-				s.is_winner ? 1 : (
-					2 +
-					seats.filter(
-						(other) => !other.is_winner && Number(other.endGameTurn) > Number(s.endGameTurn),
-					).length
-				);
-			const conditionId = gameEndReasons.find(
-				(reason) => reason.label === (placement === 1 ? s.winCondition : s.eliminationReason),
-			)!.id;
-			return {
-				deckId: s.deckId as number,
-				turnOrder: s.index,
-				placement,
-				eliminatedTurn: placement === 1 ? null : parseInt(s.endGameTurn, 10),
-				winConditionId: placement === 1 ? conditionId : null,
-				eliminationReasonId: placement !== 1 ? conditionId : null,
-				commentTagIds: s.commentTagIds,
-			};
+	// Android back steps back through the flow before leaving it.
+	useEffect(() => {
+		const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+			if (step === 0) return false;
+			goBack();
+			return true;
 		});
+		return () => sub.remove();
+	}, [step]);
 
+	const advance = (problem: string | null) => {
+		setError(problem);
+		if (!problem) setStep(step + 1);
+	};
+
+	const checkSeats = () => {
+		if (seats.some((seat) => seat.deckId === null)) return 'Every seat needs a deck.';
+		return null;
+	};
+
+	const checkTurns = () => {
+		if (!seats.some((seat) => seat.won)) return 'Someone must have won.';
+		if (seats.some((seat) => seat.outTurn === null || !seat.reason))
+			return 'Mark how everyone went out.';
+		return null;
+	};
+
+	const handleCreateDeck = (name: string, commander: string) => addDeck(name, commander);
+
+	const handleSave = async () => {
+		const tagId = (label: string) => gameEndReasons.find((reason) => reason.label === label)!.id;
+		const winner = seats.find((seat) => seat.won)!;
+
+		const seatInputs: SeatInput[] = seats.map((seat, i) => ({
+			deckId: seat.deckId!,
+			turnOrder: i + 1,
+			placement: placementOf(seat, seats),
+			eliminatedTurn: seat.won ? null : seat.outTurn,
+			winConditionId: seat.won ? tagId(seat.reason) : null,
+			eliminationReasonId: seat.won ? null : tagId(seat.reason),
+			commentTagIds: seat.isUsers ? commentTagIds : [],
+		}));
+
+		setError(null);
+		setSaving(true);
 		try {
-			await logGame({ totalTurns: parseInt(totalTurns, 10), seats: seatInputs });
-			router.push('/(tabs)');
+			await logGame({ totalTurns: winner.outTurn!, seats: seatInputs });
+			router.back();
 		} catch (e) {
-			setError('Something went wrong saving the game. Please try again.');
+			console.error('Failed to save game:', e);
+			setError('Something went wrong saving the game. Try again.');
 		} finally {
-			setSubmitting(false);
+			setSaving(false);
 		}
-	};
-
-	const handleStageSetup = () => {
-		const seatsWithID = seats.filter((seat) => seat.deckId !== null);
-		if (seatsWithID.length !== 4) {
-			setError('Decks cannot be empty');
-			return;
-		}
-		setError(null);
-		setSeats((prev) => prev.map((s, i) => ({ ...s, index: i + 1 })));
-		setInputStage('midgame');
-	};
-
-	const handleStageMidGame = () => {
-		const winner = seats.filter((seat) => seat.is_winner);
-		const reasons = seats.filter((seat) => seat.eliminationReason || seat.winCondition);
-
-		if (!winner.length) {
-			setError('Someone must have won.');
-			return;
-		}
-		if (reasons.length !== 4) {
-			setError('Make sure everyone has a reason they lost');
-			return;
-		}
-		setError(null);
-		setInputStage('postgame');
-	};
-
-	const handlePostGame = async () => {
-		const userSeat = seats.find((seat) => seat.isUser)!;
-		if (userSeat.commentTagIds.length === 0) {
-			setError('Select at least one option');
-			return;
-		}
-		setError(null);
-		await handleSubmit();
 	};
 
 	return (
-		<>
-			{inputStage === 'setup' && (
-				<>
-					<Text style={{ fontSize: 20, fontWeight: 400, padding: 8 }}>
-						Order the decks in turn order:
-					</Text>
-					<DraggableFlatList
-						contentContainerStyle={styles.container}
-						data={seats}
-						keyExtractor={(item) => item.index.toString()}
-						renderItem={({ item: seat, drag }) => (
-							<SeatForm
-								value={seat}
-								onChange={(value) => updateSeat(value)}
-								decks={decks}
-								drag={drag}
-								onCreateDeck={handleCreateDeck}
-							/>
-						)}
-						onDragEnd={({ data }) => {
-							setSeats(data);
-						}}
-						ListFooterComponent={
-							<>
-								{error && <HelperText type='error'>{error}</HelperText>}
-								<Button
-									mode='contained'
-									onPress={handleStageSetup}
-									loading={submitting}
-									disabled={submitting}
-									style={{ borderRadius: 8 }}>
-									Start Game
-								</Button>
-							</>
-						}
-					/>
-				</>
-			)}
-			{inputStage === 'midgame' && (
-				<>
-					<TurnInputScreen
-						seats={seats}
-						gameEndReasons={gameEndReasons}
-						updateSeats={updateSeat}
-						setTotalTurns={setTotalTurns}
-						handleStageMidGame={handleStageMidGame}
-						error={error}
-					/>
-				</>
-			)}
-			{inputStage === 'postgame' && (
-				<PostGameInputScreen
-					updateSeat={updateSeat}
+		<View style={styles.screen}>
+			<EntryHead label={STEPS[step].label} step={step + 1} steps={STEPS.length} onBack={goBack} />
+			{step === 0 && (
+				<SeatsStep
 					seats={seats}
-					commentTags={commentTags}
-					handlePostGame={handlePostGame}
+					setSeats={setSeats}
+					decks={decks}
+					gameCounts={gameCounts}
+					onCreateDeck={handleCreateDeck}
+					onNext={() => advance(checkSeats())}
 					error={error}
-					submitting={submitting}
 				/>
 			)}
-		</>
+			{step === 1 && (
+				<TurnsStep
+					seats={seats}
+					setSeats={setSeats}
+					turn={turn}
+					setTurn={setTurn}
+					reasons={gameEndReasons.map((reason) => reason.label)}
+					onNext={() => advance(checkTurns())}
+					error={error}
+				/>
+			)}
+			{step === 2 && (
+				<AfterStep
+					seats={seats}
+					commentTags={commentTags}
+					selectedTagIds={commentTagIds}
+					setSelectedTagIds={setCommentTagIds}
+					onSave={handleSave}
+					saving={saving}
+					error={error}
+				/>
+			)}
+		</View>
 	);
 }
 
 const styles = StyleSheet.create({
-	container: { padding: 16, paddingBottom: 48 },
+	screen: { flex: 1, backgroundColor: ink.paper },
 });

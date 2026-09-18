@@ -9,9 +9,9 @@ import { seedTestData } from '@/lib/seedTestData';
 import { Txt } from '@/components/notebook/Hand';
 import { RuledPaper, Rule } from '@/components/notebook/RuledPaper';
 import { SectionTitle } from '@/components/notebook/SectionTitle';
+import { PenButton } from '@/components/notebook/PenButton';
 import {
 	fonts,
-	handDrawnRadius,
 	ink,
 	labelText,
 	onRules,
@@ -108,10 +108,9 @@ export default function HomeScreen() {
 				<Stat label='Decks' value={`${userDeckCount}`} />
 			</View>
 
-			<Pressable style={styles.logButton} onPress={() => router.push('/new-game')}>
-				<View style={styles.logButtonOutline} />
-				<Txt style={styles.logButtonText}>+ write down a game</Txt>
-			</Pressable>
+			<View style={styles.logButton}>
+				<PenButton label='+ write down a game' onPress={() => router.push('/new-game')} />
+			</View>
 
 			<View style={styles.sectionHead}>
 				<SectionTitle>Games played</SectionTitle>
@@ -204,14 +203,7 @@ const styles = StyleSheet.create({
 	},
 	statRow: { flexDirection: 'row', gap: 22 - overhang(30) },
 	statValue: { ...onRules(fonts.caveat700, 30), color: ink.ink },
-	logButton: { marginTop: RULE_SPACING, height: RULE_SPACING * 2, alignItems: 'center' },
-	logButtonOutline: {
-		...StyleSheet.absoluteFillObject,
-		...handDrawnRadius,
-		borderWidth: 2.5,
-		borderColor: ink.blue,
-	},
-	logButtonText: { ...onRules(fonts.caveat700, 26), color: ink.blue },
+	logButton: { marginTop: RULE_SPACING },
 	sectionHead: {
 		flexDirection: 'row',
 		justifyContent: 'space-between',

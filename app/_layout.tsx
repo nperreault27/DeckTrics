@@ -4,6 +4,7 @@ import { PaperProvider } from 'react-native-paper';
 import { useFonts, Caveat_500Medium, Caveat_600SemiBold, Caveat_700Bold } from '@expo-google-fonts/caveat';
 import { Kalam_300Light, Kalam_700Bold } from '@expo-google-fonts/kalam';
 import { themes } from '../lib/themes';
+import { ink } from '@/lib/notebook';
 import { useThemeStore } from '@/store/useThemeStore';
 
 export default function RootLayout() {
@@ -32,7 +33,10 @@ export default function RootLayout() {
 						statusBarStyle: 'light',
 					}}>
 					<Stack.Screen name='(tabs)' options={{ headerShown: false, statusBarStyle: 'dark' }} />
-					<Stack.Screen name='new-game' options={{ title: 'Log a Game' }} />
+					<Stack.Screen
+						name='new-game'
+						options={{ headerShown: false, statusBarStyle: 'dark', contentStyle: { backgroundColor: ink.paper } }}
+					/>
 					<Stack.Screen name='decks/[id]' options={{ title: 'Deck Stats' }} />
 				</Stack>
 			</GestureHandlerRootView>
