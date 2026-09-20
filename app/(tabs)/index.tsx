@@ -10,10 +10,12 @@ import { Txt } from '@/components/notebook/Hand';
 import { RuledPaper, Rule } from '@/components/notebook/RuledPaper';
 import { SectionTitle } from '@/components/notebook/SectionTitle';
 import { PenButton } from '@/components/notebook/PenButton';
+import { StatRow } from '@/components/notebook/StatRow';
 import {
 	fonts,
 	ink,
 	labelText,
+	hangOnRules,
 	onRules,
 	overhang,
 	RULE_SPACING,
@@ -102,11 +104,13 @@ export default function HomeScreen() {
 				<Txt style={styles.heroNumber}>{winRate}%</Txt>
 			</View>
 
-			<View style={styles.statRow}>
-				<Stat label='Games' value={`${totalGames}`} />
-				<Stat label='Avg length' value={`${avgTurns} turns`} />
-				<Stat label='Decks' value={`${userDeckCount}`} />
-			</View>
+			<StatRow
+				stats={[
+					{ label: 'Games', value: `${totalGames}` },
+					{ label: 'Avg length', value: `${avgTurns} turns` },
+					{ label: 'Decks', value: `${userDeckCount}` },
+				]}
+			/>
 
 			<View style={styles.logButton}>
 				<PenButton label='+ write down a game' onPress={() => router.push('/new-game')} />
@@ -149,20 +153,10 @@ export default function HomeScreen() {
 								{describeEnding(game)}
 							</Txt>
 						</View>
-						{index < visibleGames.length - 1 && <Rule width={1.5} />}
 					</View>
 				))
 			}
 		</ScrollView>
-	);
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-	return (
-		<View>
-			<Txt style={labelText}>{label}</Txt>
-			<Txt style={styles.statValue}>{value}</Txt>
-		</View>
 	);
 }
 
@@ -201,8 +195,6 @@ const styles = StyleSheet.create({
 		height: 1.5,
 		backgroundColor: ink.ink,
 	},
-	statRow: { flexDirection: 'row', gap: 22 - overhang(30) },
-	statValue: { ...onRules(fonts.caveat700, 30), color: ink.ink },
 	logButton: { marginTop: RULE_SPACING },
 	sectionHead: {
 		flexDirection: 'row',
@@ -216,7 +208,7 @@ const styles = StyleSheet.create({
 	placement: { width: 44 + overhang(30), ...onRules(fonts.caveat700, 30) },
 	gameBody: { flex: 1, marginLeft: 12 - overhang(30) },
 	deckName: { ...onRules(fonts.caveat600, 24), color: ink.ink },
-	ending: { ...onRules(fonts.kalam300, 14), color: ink.body },
+	ending: { ...hangOnRules(fonts.kalam300, 14), color: ink.body },
 	empty: { ...onRules(fonts.kalam300, 14), color: ink.faint },
 	seedLink: { alignSelf: 'flex-start' },
 	seedLinkText: { ...onRules(fonts.caveat600, 20), color: ink.red },

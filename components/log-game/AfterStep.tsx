@@ -14,7 +14,7 @@ import { Txt } from '@/components/notebook/Hand';
 import { PenButton } from '@/components/notebook/PenButton';
 import { RuledPaper } from '@/components/notebook/RuledPaper';
 import { SectionTitle } from '@/components/notebook/SectionTitle';
-import { displayDeckName, ordinal, placementOf, Seat } from './model';
+import { ordinal, placementOf, Seat } from './model';
 
 type Props = {
 	seats: Seat[];
@@ -42,7 +42,7 @@ export function AfterStep({ seats, commentTags, selectedTagIds, setSelectedTagId
 			<Txt style={styles.title}>How'd it go?</Txt>
 			<Txt style={styles.body}>
 				{winner ?
-					`${displayDeckName(winner.deckName)} took it on turn ${winner.outTurn} by ${winner.reason.toLowerCase()}. `
+					`${winner.deckName} took it on turn ${winner.outTurn} by ${winner.reason.toLowerCase()}. `
 				:	''}
 				Circle whatever applied to your game.
 			</Txt>
@@ -70,7 +70,7 @@ export function AfterStep({ seats, commentTags, selectedTagIds, setSelectedTagId
 						{ordinal(placement)}
 					</Txt>
 					<Txt style={[styles.resultName, seat.isUsers && { color: ink.blue }]} numberOfLines={1}>
-						{displayDeckName(seat.deckName)}
+						{seat.deckName}
 					</Txt>
 					<Txt style={styles.resultMeta}>
 						{shortReason(seat.reason)}, t{seat.outTurn}

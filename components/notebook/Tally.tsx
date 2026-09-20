@@ -1,20 +1,12 @@
 import Svg, { Path } from 'react-native-svg';
 import { ink, RULE_SPACING } from '@/lib/notebook';
+import { wobble } from '@/lib/pen';
 
 const STROKE_GAP = 6;
 const GROUP_GAP = 10;
 const TOP = 9;
 // Strokes end on the rule, like the text baselines.
 const BOTTOM = RULE_SPACING - 3;
-
-// Deterministic value in [-1, 1) for a (seed, stroke, channel) triple (mulberry32 finaliser).
-// Hashing each stroke independently keeps earlier strokes unchanged when the count grows.
-function wobble(seed: number, stroke: number, channel: number) {
-	let t = (seed * 7919 + stroke * 104729 + channel * 15485863 + 0x6d2b79f5) | 0;
-	t = Math.imul(t ^ (t >>> 15), t | 1);
-	t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-	return (((t ^ (t >>> 14)) >>> 0) / 4294967296) * 2 - 1;
-}
 
 // Tally marks for a count: groups of four strokes crossed by a diagonal. One ruled line tall.
 // Each stroke gets a small seeded wobble so it reads as hand-drawn but stays put between renders;

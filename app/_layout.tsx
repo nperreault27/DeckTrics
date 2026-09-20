@@ -37,7 +37,10 @@ export default function RootLayout() {
 						name='new-game'
 						options={{ headerShown: false, statusBarStyle: 'dark', contentStyle: { backgroundColor: ink.paper } }}
 					/>
-					<Stack.Screen name='decks/[id]' options={{ title: 'Deck Stats' }} />
+					<Stack.Screen
+						name='decks/[id]'
+						options={{ headerShown: false, statusBarStyle: 'dark', contentStyle: { backgroundColor: ink.paper } }}
+					/>
 				</Stack>
 			</GestureHandlerRootView>
 		</PaperProvider>

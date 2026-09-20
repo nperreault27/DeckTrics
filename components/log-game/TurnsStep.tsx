@@ -14,7 +14,7 @@ import { PenButton } from '@/components/notebook/PenButton';
 import { ChevronDown, Minus, Plus } from '@/components/notebook/PenIcons';
 import { PickerSheet } from '@/components/notebook/PickerSheet';
 import { Rule, RuledPaper } from '@/components/notebook/RuledPaper';
-import { displayDeckName, Seat } from './model';
+import { Seat } from './model';
 
 type Picking = { key: number; kind: 'won' | 'lost' };
 
@@ -106,7 +106,7 @@ export function TurnsStep({ seats, setSeats, turn, setTurn, reasons, onNext, err
 						<View key={seat.key} style={styles.seatBlock}>
 							<View style={styles.line}>
 								<Txt style={styles.deckName} numberOfLines={1}>
-									{displayDeckName(seat.deckName)}
+									{seat.deckName}
 								</Txt>
 								<Txt style={[styles.status, { color: status.color }]}>
 									seat {index + 1} · {status.text}
@@ -142,8 +142,8 @@ export function TurnsStep({ seats, setSeats, turn, setTurn, reasons, onNext, err
 				visible={picking !== null}
 				title={
 					picking?.kind === 'won' ?
-						`How did ${displayDeckName(pickingSeat?.deckName ?? '')} win?`
-					:	`What took ${displayDeckName(pickingSeat?.deckName ?? '')} out?`
+						`How did ${pickingSeat?.deckName ?? ''} win?`
+					:	`What took ${pickingSeat?.deckName ?? ''} out?`
 				}
 				options={reasons.map((reason) => ({ key: reason, label: reason.toLowerCase() }))}
 				onPick={handlePick}

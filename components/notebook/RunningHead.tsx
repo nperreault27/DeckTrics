@@ -4,14 +4,21 @@ import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Txt } from '@/components/notebook/Hand';
 import { fonts, ink, screenPadding } from '@/lib/notebook';
 
+// What the masthead says on each tab; anything not listed gets the app's own masthead.
+const MASTHEADS: Record<string, { title: string; note: string }> = {
+	decks: { title: 'The decks', note: 'p. 12' },
+};
+const DEFAULT_MASTHEAD = { title: 'DeckTrics', note: 'notebook no. 3' };
+
 export function RunningHead({ state, descriptors, navigation }: BottomTabBarProps) {
 	const insets = useSafeAreaInsets();
+	const masthead = MASTHEADS[state.routes[state.index].name] ?? DEFAULT_MASTHEAD;
 
 	return (
 		<View style={[styles.head, { paddingTop: insets.top + 14 }]}>
 			<View style={styles.masthead}>
-				<Txt style={styles.title}>DeckTrics</Txt>
-				<Txt style={styles.notebookNo}>notebook no. 3</Txt>
+				<Txt style={styles.title}>{masthead.title}</Txt>
+				<Txt style={styles.notebookNo}>{masthead.note}</Txt>
 			</View>
 			<View style={styles.sections}>
 				{state.routes.map((route, index) => {

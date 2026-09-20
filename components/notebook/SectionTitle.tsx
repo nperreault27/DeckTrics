@@ -8,17 +8,19 @@ export function SectionTitle({
 	children,
 	color = ink.ink,
 	size = 28,
+	underline = true,
 }: {
 	children: string;
 	color?: string;
 	size?: number;
+	underline?: boolean;
 }) {
 	return (
 		<View style={styles.wrap}>
 			<Txt style={[onRules(fonts.caveat600, size), { color }]} numberOfLines={1}>
 				{children}
 			</Txt>
-			<Rule color={color} />
+			{underline && <Rule color={color} />}
 		</View>
 	);
 }

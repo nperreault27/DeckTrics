@@ -16,8 +16,8 @@ import { Txt } from '@/components/notebook/Hand';
 import { Rule, RuledPaper } from '@/components/notebook/RuledPaper';
 import { SectionTitle } from '@/components/notebook/SectionTitle';
 import { Tally } from '@/components/notebook/Tally';
+import { ReasonColumns } from '@/components/notebook/ReasonColumns';
 import { sessionNote } from '@/lib/marginNotes';
-import { shortReason } from '@/lib/reasons';
 import { fonts, ink, onRules, RULE_SPACING, screenPadding, wrapOnRules } from '@/lib/notebook';
 
 // In a four-player pod an even share of wins is 25%; below that is written in red.
@@ -110,38 +110,13 @@ export default function StatsScreen() {
 					))}
 
 					<View style={styles.gap} />
-					<View style={styles.columns}>
-						<ReasonColumn title='How I win' reasons={winReasons} color={ink.ink} />
-						<View style={styles.divider} />
-						<ReasonColumn title='How I lose' reasons={loseReasons} color={ink.red} />
-					</View>
+					<ReasonColumns winTitle='How I win' wins={winReasons} loseTitle='How I lose' losses={loseReasons} />
 
 					<View style={styles.gap} />
 					<Txt style={styles.note}>note: {sessionNote}</Txt>
 				</>
 			}
 		</ScrollView>
-	);
-}
-
-function ReasonColumn({ title, reasons, color }: { title: string; reasons: TagCount[]; color: string }) {
-	return (
-		<View style={styles.column}>
-			<SectionTitle color={color} size={22}>
-				{title}
-			</SectionTitle>
-			{reasons.length === 0 ?
-				<Txt style={styles.reasonLabel}>nothing yet</Txt>
-			:	reasons.map((reason) => (
-					<View key={reason.tag_id} style={styles.row}>
-						<Txt style={styles.reasonLabel} numberOfLines={1}>
-							{shortReason(reason.label)}
-						</Txt>
-						<Txt style={[styles.reasonCount, { color }]}>{reason.count}</Txt>
-					</View>
-				))
-			}
-		</View>
 	);
 }
 
@@ -161,11 +136,6 @@ const styles = StyleSheet.create({
 	record: { width: 64, textAlign: 'right', ...onRules(fonts.caveat500, 20), color: ink.body },
 	deckRate: { width: 60, textAlign: 'right', ...onRules(fonts.caveat700, 22) },
 
-	columns: { flexDirection: 'row' },
-	column: { flex: 1 },
-	divider: { width: 1.5, marginHorizontal: 14, backgroundColor: ink.rule },
-	reasonLabel: { flex: 1, ...onRules(fonts.kalam300, 14), color: ink.body },
-	reasonCount: { width: 32, textAlign: 'right', ...onRules(fonts.caveat600, 20) },
 
 	note: { ...wrapOnRules(fonts.caveat500, 18), color: ink.red },
 });

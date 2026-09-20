@@ -21,8 +21,6 @@ export const emptySeat = (key: number, isUsers = false): Seat => ({
 	reason: '',
 });
 
-// Generic opponent decks are stored as "<Commander> (Generic)"; the notebook just writes the name.
-export const displayDeckName = (name: string) => name.replace(/ \(Generic\)$/, '');
 
 export const deckMeta = (deck: Pick<Deck, 'isUsers'>, games: number) =>
 	deck.isUsers ? `mine · ${games} ${games === 1 ? 'game' : 'games'}` : `generic · faced ${games}×`;

@@ -44,9 +44,12 @@ export const screenPadding = { paddingLeft: 26, paddingRight: 20 };
 
 // Vertical font metrics (hhea, as a fraction of font size) from the bundled TTFs.
 const METRICS = {
-	caveat: { ascent: 0.96, descent: 0.3 },
-	kalam: { ascent: 1.063, descent: 0.531 },
+	caveat: { ascent: 0.96, descent: 0.3, capHeight: 0.61 },
+	kalam: { ascent: 1.063, descent: 0.531, capHeight: 0.73 },
 };
+
+// Gap between the rule above and the tops of capitals, for text that hangs from the rule.
+const HANG_GAP = 3;
 
 const BASELINE_LIFT = 2;
 
@@ -63,12 +66,23 @@ export const overhang = (fontSize: number) => Math.ceil(fontSize * 0.25);
 // out of the layout. The line box centres the glyphs, so the margins also shift it to land the
 // baseline on the rule.
 export function onRules(fontFamily: string, fontSize: number, lines = 1) {
+	return ruledText(fontFamily, fontSize, lines * RULE_SPACING - 1 - BASELINE_LIFT, lines);
+}
+
+// Like onRules, but the text hangs from the rule at the top of its line instead of resting on
+// the one below: for small secondary text tucked right under the line above it.
+export function hangOnRules(fontFamily: string, fontSize: number) {
+	const { capHeight } = fontFamily.startsWith('Caveat') ? METRICS.caveat : METRICS.kalam;
+	return ruledText(fontFamily, fontSize, HANG_GAP + Math.round(capHeight * fontSize), 1);
+}
+
+// Shared by onRules/hangOnRules: puts the baseline `target` px below the top of a `lines`-tall slot.
+function ruledText(fontFamily: string, fontSize: number, target: number, lines: number) {
 	const { ascent, descent } = fontFamily.startsWith('Caveat') ? METRICS.caveat : METRICS.kalam;
 	const bleed = RULE_SPACING;
 	const lineHeight = lines * RULE_SPACING + bleed * 2;
 	const baseline = (lineHeight - (ascent + descent) * fontSize) / 2 + ascent * fontSize;
-	const target = bleed + lines * RULE_SPACING - 1 - BASELINE_LIFT;
-	const shift = Math.round(target - baseline);
+	const shift = Math.round(bleed + target - baseline);
 
 	return {
 		fontFamily,

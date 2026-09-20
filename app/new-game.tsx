@@ -5,7 +5,7 @@ import { useDecksStore } from '@/store/useDecksStore';
 import { useGamesStore } from '@/store/useGamesStore';
 import { getDeckGameCounts, listTagsByCategory, POD_SIZE, SeatInput, Tag } from '@/lib/db';
 import { ink } from '@/lib/notebook';
-import { EntryHead } from '@/components/log-game/EntryHead';
+import { PageHead } from '@/components/notebook/PageHead';
 import { SeatsStep } from '@/components/log-game/SeatsStep';
 import { TurnsStep } from '@/components/log-game/TurnsStep';
 import { AfterStep } from '@/components/log-game/AfterStep';
@@ -105,7 +105,7 @@ export default function NewGameScreen() {
 
 	return (
 		<View style={styles.screen}>
-			<EntryHead label={STEPS[step].label} step={step + 1} steps={STEPS.length} onBack={goBack} />
+			<PageHead label={STEPS[step].label} right={`${step + 1} of ${STEPS.length}`} onBack={goBack} />
 			{step === 0 && (
 				<SeatsStep
 					seats={seats}

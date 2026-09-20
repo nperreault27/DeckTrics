@@ -1,239 +1,188 @@
-import { useEffect, useRef, useState } from 'react';
-import { View, FlatList, Pressable, StyleSheet } from 'react-native';
-import { Link } from 'expo-router';
-import { Text, TextInput, Button, Modal, Portal, useTheme } from 'react-native-paper';
-import { Autocomplete, AutocompleteScrollView } from 'react-native-paper-autocomplete';
-import { fetchSuggestions } from '@/api/scryfall';
+import { useCallback, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
+import { Deck, DeckRecord, getDeckRecords, POD_SIZE } from '@/lib/db';
+import {
+	fonts,
+	ink,
+	labelText,
+	hangOnRules,
+	onRules,
+	RULE_SPACING,
+	screenPadding,
+	wrapOnRules,
+} from '@/lib/notebook';
 import { useDecksStore } from '@/store/useDecksStore';
-import Ionicons from '@expo/vector-icons/Ionicons';
-import { LinearGradient } from 'expo-linear-gradient';
+import { NewDeckSheet } from '@/components/decks/NewDeckSheet';
+import { Txt } from '@/components/notebook/Hand';
+import { PenButton } from '@/components/notebook/PenButton';
+import { Rule, RuledPaper } from '@/components/notebook/RuledPaper';
+import { SectionTitle } from '@/components/notebook/SectionTitle';
 
-type CommanderOption = { id: string; label: string };
+type Filter = 'mine' | 'all';
+
+// In a four-player pod an even share of wins is 25%: above it is written in blue, below in red.
+const PAR_WIN_RATE = 100 / POD_SIZE;
+// A deck needs this many games before the margin note calls it out.
+const NOTE_MIN_GAMES = 3;
+
+type DeckRow = Deck & { games: number; wins: number; rate: number };
 
 export default function DecksScreen() {
-	const { decks, loading, loadDecks, addDeck } = useDecksStore();
-	const theme = useTheme();
+	const { decks, loadDecks, addDeck } = useDecksStore();
+	const [records, setRecords] = useState<DeckRecord[]>([]);
+	const [filter, setFilter] = useState<Filter>('mine');
+	const [adding, setAdding] = useState(false);
 
-	const [modalVisible, setModalVisible] = useState(false);
-	const [name, setName] = useState('');
-	const [commander, setCommander] = useState('');
-	const [commanderOptions, setCommanderOptions] = useState<CommanderOption[]>([]);
-	const [saving, setSaving] = useState(false);
+	// Tabs stay mounted, so reload on focus to pick up games logged since.
+	useFocusEffect(
+		useCallback(() => {
+			loadDecks();
+			getDeckRecords().then(setRecords);
+		}, []),
+	);
 
-	const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-	const requestId = useRef(0);
+	const rows: DeckRow[] = decks
+		.filter((deck) => filter === 'all' || deck.isUsers)
+		.map((deck) => {
+			const record = records.find((r) => r.deck_id === deck.id);
+			const games = record?.games ?? 0;
+			const wins = record?.wins ?? 0;
+			return { ...deck, games, wins, rate: games > 0 ? Math.round((wins / games) * 100) : 0 };
+		})
+		// Played decks by win rate, then unplayed ones.
+		.sort(
+			(a, b) => Number(b.games > 0) - Number(a.games > 0) || b.rate - a.rate || b.games - a.games,
+		);
 
-	useEffect(() => {
-		loadDecks();
+	const struggling = rows
+		.filter((row) => row.isUsers && row.games >= NOTE_MIN_GAMES && row.rate < PAR_WIN_RATE)
+		.sort((a, b) => a.rate - b.rate)[0];
 
-		return () => {
-			if (searchTimer.current) {
-				clearTimeout(searchTimer.current);
-			}
-		};
-	}, []);
-
-	const searchCommanders = (query: string) => {
-		if (searchTimer.current) {
-			clearTimeout(searchTimer.current);
-		}
-
-		const trimmedQuery = query.trim();
-
-		if (trimmedQuery.length < 2) {
-			requestId.current += 1;
-			setCommanderOptions([]);
-			return;
-		}
-
-		searchTimer.current = setTimeout(async () => {
-			const currentRequest = ++requestId.current;
-			const suggestions = await fetchSuggestions(trimmedQuery);
-
-			if (currentRequest === requestId.current) {
-				setCommanderOptions(
-					suggestions.map((suggestion) => ({ id: suggestion, label: suggestion })),
-				);
-			}
-		}, 300);
+	const handleSave = async (name: string, commander: string) => {
+		await addDeck(name, commander, true);
+		getDeckRecords().then(setRecords);
 	};
-
-	const handleAdd = async () => {
-		const trimmedName = name.trim();
-		const trimmedCommander = commander.trim();
-
-		if (!trimmedName || !trimmedCommander) {
-			return;
-		}
-
-		setSaving(true);
-
-		try {
-			await addDeck(trimmedName, trimmedCommander, true);
-
-			setName('');
-			setCommander('');
-			setCommanderOptions([]);
-			setModalVisible(false);
-		} finally {
-			setSaving(false);
-		}
-	};
-
-	const myDecks = decks.filter((deck) => deck.isUsers);
-	const genericDecks = decks.filter((deck) => !deck.isUsers);
 
 	return (
-		<View style={styles.container}>
-			<LinearGradient
-				colors={[theme.colors.primary, theme.colors.secondary]}
-				start={{ x: 0, y: 0 }}
-				end={{ x: 1, y: 1 }}
-				style={styles.addButtonGradient}>
-				<Button
-					mode='contained'
-					onPress={() => setModalVisible(true)}
-					style={styles.addButton}
-					contentStyle={styles.addButtonContent}>
-					<View style={styles.addButtonRow}>
-						<Text style={[styles.addButtonText, { color: theme.colors.onPrimary }]}>NEW DECK</Text>
-						<Ionicons name='duplicate-sharp' size={22} color={theme.colors.onPrimary} />
-					</View>
-				</Button>
-			</LinearGradient>
+		<>
+			<ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+				<RuledPaper />
 
-			<Portal>
-				<Modal
-					visible={modalVisible}
-					onDismiss={() => setModalVisible(false)}
-					contentContainerStyle={[styles.modal, { backgroundColor: theme.colors.surface }]}>
-					<Text variant='headlineSmall'>Add deck</Text>
-
-					<TextInput
-						label='Deck name'
-						mode='outlined'
-						value={name}
-						onChangeText={setName}
-						style={styles.input}
+				<View style={styles.filterRow}>
+					<FilterTab
+						label='my decks'
+						active={filter === 'mine'}
+						onPress={() => setFilter('mine')}
 					/>
+					<FilterTab label='all decks' active={filter === 'all'} onPress={() => setFilter('all')} />
+					<View style={styles.flex} />
+					<Txt style={labelText}>
+						{rows.length} {rows.length === 1 ? 'deck' : 'decks'}
+					</Txt>
+				</View>
+				<View style={styles.gap} />
 
-					<AutocompleteScrollView>
-						<Autocomplete
-							options={commanderOptions}
-							value={commander ? { id: commander, label: commander } : undefined}
-							onChange={(option) => {
-								setCommander(option?.label ?? '');
-							}}
-							inputProps={{
-								label: 'Commander',
-								placeholder: 'Search for a commander',
-								onChangeText: (query) => {
-									setCommander(query);
-									searchCommanders(query);
-								},
-							}}
-						/>
-					</AutocompleteScrollView>
+				{rows.length === 0 ?
+					<Txt style={styles.empty}>
+						{filter === 'mine' ? 'no decks yet — start one below.' : 'no decks yet.'}
+					</Txt>
+				:	rows.map((row, index) => (
+						<Pressable
+							key={row.id}
+							style={styles.deckRow}
+							onPress={() => router.push(`/decks/${row.id}`)}>
+							<View style={styles.flex}>
+								<Txt style={styles.name} numberOfLines={1}>
+									{row.name}
+								</Txt>
+								<Txt style={styles.meta} numberOfLines={1}>
+									{deckMeta(row)}
+								</Txt>
+							</View>
+							<View style={styles.rateColumn}>
+								<Txt style={[styles.rate, { color: rateColor(row) }]}>
+									{row.games > 0 ? `${row.rate}%` : '—'}
+								</Txt>
+								<Txt style={styles.record}>
+									{row.wins}–{row.games - row.wins}
+								</Txt>
+							</View>
+						</Pressable>
+					))
+				}
 
-					<View style={styles.modalActions}>
-						<Button mode='text' onPress={() => setModalVisible(false)} disabled={saving}>
-							Cancel
-						</Button>
+				<View style={styles.gap} />
+				{struggling && filter === 'mine' && (
+					<Txt style={styles.note}>
+						note: {struggling.name.split(' ')[0]} needs more interaction, or a different table
+					</Txt>
+				)}
+				<View style={styles.gap} />
+				<PenButton label='+ start a new deck' onPress={() => setAdding(true)} />
+			</ScrollView>
 
-						<Button
-							mode='contained'
-							onPress={handleAdd}
-							loading={saving}
-							disabled={!name.trim() || !commander.trim() || saving}>
-							Add
-						</Button>
-					</View>
-				</Modal>
-			</Portal>
-
-			<View style={styles.listSection}>
-				<Text variant='titleMedium' style={styles.sectionTitle}>
-					My Decks:
-				</Text>
-				<FlatList
-					data={myDecks}
-					nestedScrollEnabled
-					keyExtractor={(item) => String(item.id)}
-					refreshing={loading}
-					onRefresh={loadDecks}
-					style={styles.deckList}
-					ListEmptyComponent={<Text style={styles.empty}>No decks yet.</Text>}
-					renderItem={({ item }) => (
-						<Link href={`/decks/${item.id}`} asChild>
-							<Pressable
-								style={{
-									...styles.row,
-									backgroundColor: theme.colors.surface,
-									borderColor: theme.colors.outline,
-								}}>
-								<Text variant='titleMedium' style={{ color: theme.colors.primary }}>
-									{item.name}
-								</Text>
-								{item.commander && <Text style={styles.meta}>{item.commander}</Text>}
-							</Pressable>
-						</Link>
-					)}
-				/>
-			</View>
-
-			<View style={styles.listSection}>
-				<Text variant='titleMedium' style={styles.sectionTitle}>
-					Generic Decks:
-				</Text>
-				<FlatList
-					data={genericDecks}
-					keyExtractor={(item) => String(item.id)}
-					refreshing={loading}
-					onRefresh={loadDecks}
-					nestedScrollEnabled
-					style={styles.deckList}
-					ListEmptyComponent={<Text style={styles.empty}>No decks yet.</Text>}
-					renderItem={({ item }) => (
-						<Link href={`/decks/${item.id}`} asChild>
-							<Pressable
-								style={{
-									...styles.row,
-									backgroundColor: theme.colors.surface,
-									borderColor: theme.colors.outline,
-								}}>
-								<Text variant='titleMedium' style={{ color: theme.colors.primary }}>
-									{item.name}
-								</Text>
-								{item.commander && <Text style={styles.meta}>{item.commander}</Text>}
-							</Pressable>
-						</Link>
-					)}
-				/>
-			</View>
-		</View>
+			<NewDeckSheet visible={adding} onClose={() => setAdding(false)} onSave={handleSave} />
+		</>
 	);
 }
 
+// Written like a section title; the active one is in ink and underlined, the other faint.
+function FilterTab({
+	label,
+	active,
+	onPress,
+}: {
+	label: string;
+	active: boolean;
+	onPress: () => void;
+}) {
+	return (
+		<Pressable onPress={onPress} accessibilityRole='tab' accessibilityState={{ selected: active }}>
+			<SectionTitle color={active ? ink.ink : ink.faint} underline={active}>
+				{label}
+			</SectionTitle>
+		</Pressable>
+	);
+}
+
+// "<commander> · 5 games" for your decks; opponents' decks are usually named after their
+// commander, so only repeat it when it differs.
+function deckMeta(row: DeckRow) {
+	const parts: string[] = [];
+	if (row.commander && row.commander !== row.name) parts.push(row.commander);
+	if (!row.isUsers) parts.push('opponent');
+	parts.push(
+		row.games === 0 ? 'no games yet'
+		: row.isUsers ? `${row.games} ${row.games === 1 ? 'game' : 'games'}`
+		: `faced ${row.games}×`,
+	);
+	return parts.join(' · ');
+}
+
+function rateColor(row: DeckRow) {
+	if (row.games === 0) return ink.faint;
+	if (row.rate > PAR_WIN_RATE) return ink.blue;
+	if (row.rate < PAR_WIN_RATE) return ink.red;
+	return ink.ink;
+}
+
 const styles = StyleSheet.create({
-	sectionTitle: { marginBottom: 12 },
-	container: { flex: 1, paddingHorizontal: 16, paddingTop: 8 },
-	modal: { margin: 20, padding: 20, borderRadius: 8, gap: 12 },
-	input: { backgroundColor: 'transparent' },
-	modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 8 },
-	row: { paddingVertical: 8, paddingHorizontal: 12, marginBottom: 8, borderWidth: 1 },
-	meta: { fontSize: 12, marginTop: 2 },
-	empty: { textAlign: 'center', marginTop: 40, color: '#888' },
-	listSection: { flex: 1, minHeight: 0 },
-	deckList: { flex: 1 },
-	addButtonGradient: { marginBottom: 16, borderRadius: 4, overflow: 'hidden', width: '100%' },
-	addButton: { backgroundColor: 'transparent', borderRadius: 4 },
-	addButtonContent: { height: 48, paddingHorizontal: 12 },
-	addButtonRow: {
-		flex: 1,
-		width: '100%',
-		flexDirection: 'row',
-		alignItems: 'center',
-		justifyContent: 'space-between',
-	},
-	addButtonText: { fontSize: 20, fontWeight: '700' },
+	scroll: { flex: 1, backgroundColor: ink.paper },
+	// Every block is a whole number of ruled lines tall, so text stays on the rules.
+	content: { flexGrow: 1, ...screenPadding, paddingBottom: RULE_SPACING * 2 },
+	gap: { height: RULE_SPACING },
+	flex: { flex: 1 },
+	empty: { ...onRules(fonts.kalam300, 14), color: ink.faint },
+
+	filterRow: { flexDirection: 'row', alignItems: 'flex-start', height: RULE_SPACING, gap: 14 },
+
+	deckRow: { flexDirection: 'row', height: RULE_SPACING * 2 },
+	name: { ...onRules(fonts.caveat600, 24), color: ink.ink },
+	meta: { ...hangOnRules(fonts.kalam300, 12), color: ink.body },
+	rateColumn: { alignItems: 'flex-end', marginLeft: 8 },
+	rate: onRules(fonts.caveat700, 28),
+	record: { ...hangOnRules(fonts.kalam300, 12), color: ink.faint },
+
+	note: { ...wrapOnRules(fonts.caveat500, 18), color: ink.red },
 });

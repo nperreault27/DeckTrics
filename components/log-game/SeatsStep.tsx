@@ -3,13 +3,21 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import DraggableFlatList, { RenderItemParams } from 'react-native-draggable-flatlist';
 import { fetchSuggestions } from '@/api/scryfall';
 import { Deck } from '@/lib/db';
-import { fonts, ink, onRules, RULE_SPACING, screenPadding, wrapOnRules } from '@/lib/notebook';
+import {
+	fonts,
+	hangOnRules,
+	ink,
+	onRules,
+	RULE_SPACING,
+	screenPadding,
+	wrapOnRules,
+} from '@/lib/notebook';
 import { Txt } from '@/components/notebook/Hand';
 import { PenButton } from '@/components/notebook/PenButton';
 import { ChevronDown, Handle } from '@/components/notebook/PenIcons';
 import { PickerOption, PickerSheet } from '@/components/notebook/PickerSheet';
 import { Rule, RuledPaper } from '@/components/notebook/RuledPaper';
-import { deckMeta, displayDeckName, Seat } from './model';
+import { deckMeta, Seat } from './model';
 
 const MAX_DECK_OPTIONS = 8;
 
@@ -65,7 +73,7 @@ export function SeatsStep({ seats, setSeats, decks, gameCounts, onCreateDeck, on
 
 		const options: PickerOption[] = existing.map((deck) => ({
 			key: `deck:${deck.id}`,
-			label: displayDeckName(deck.name),
+			label: deck.name,
 			meta: deckMeta(deck, gameCounts[deck.id] ?? 0),
 			color: pickingMine ? ink.blue : ink.ink,
 		}));
@@ -93,8 +101,10 @@ export function SeatsStep({ seats, setSeats, decks, gameCounts, onCreateDeck, on
 			const deck = decks.find((d) => d.id === Number(optionKey.slice(5)));
 			if (deck) updateSeat(key, { deckId: deck.id, deckName: deck.name });
 		} else {
+			// Opponent decks are named after their commander. Names are unique, so if one of your
+			// decks already has this exact name, mark the opponent's copy.
 			const commander = optionKey.slice(4);
-			const name = `${commander} (Generic)`;
+			const name = decks.some((d) => d.name === commander) ? `${commander} (opponent)` : commander;
 			const id = await onCreateDeck(name, commander);
 			updateSeat(key, { deckId: id, deckName: name });
 		}
@@ -112,7 +122,7 @@ export function SeatsStep({ seats, setSeats, decks, gameCounts, onCreateDeck, on
 					{filled ?
 						<>
 							<Txt style={styles.deckName} numberOfLines={1}>
-								{displayDeckName(seat.deckName)}
+								{seat.deckName}
 							</Txt>
 							<Txt style={styles.deckMeta}>
 								{deckMeta(seat, gameCounts[seat.deckId!] ?? 0)}
@@ -211,7 +221,7 @@ const styles = StyleSheet.create({
 	seatNumber: { width: 34, ...onRules(fonts.caveat700, 26) },
 	seatBody: { flex: 1 },
 	deckName: { ...onRules(fonts.caveat600, 22), color: ink.ink },
-	deckMeta: { ...onRules(fonts.kalam300, 12), color: ink.faint },
+	deckMeta: { ...hangOnRules(fonts.kalam300, 12), color: ink.faint },
 	pickLine: { flexDirection: 'row', alignItems: 'flex-start', height: RULE_SPACING, paddingRight: 4 },
 	pickChevron: { marginTop: 14 },
 	pickText: { flex: 1, ...onRules(fonts.caveat500, 22), color: ink.faint },

@@ -152,8 +152,19 @@ async function runMigrations(db: SQLite.SQLiteDatabase) {
         );
       `);
     },
-    // v2, v3, ... add future schema changes here as new entries -
-    // never edit the migration above once it has shipped.
+    // v2: opponent decks used to be named "<Commander> (Generic)"; drop the suffix. Skips any
+    // deck whose plain name is already taken, since names are unique.
+    async (db) => {
+      await db.execAsync(`
+        UPDATE decks
+        SET name = substr(name, 1, length(name) - length(' (Generic)'))
+        WHERE is_users = 0
+          AND name LIKE '% (Generic)'
+          AND substr(name, 1, length(name) - length(' (Generic)')) NOT IN (SELECT name FROM decks);
+      `);
+    },
+    // v3, ... add future schema changes here as new entries -
+    // never edit the migrations above once they have shipped.
   ];
 
   for (let v = currentVersion; v < migrations.length; v++) {
@@ -384,6 +395,20 @@ export async function getOverviewTotals(): Promise<OverviewTotals> {
     FROM games
   `);
   return row ?? { avg_turns: null, total_turns: null, games_played: 0 };
+}
+
+export type DeckRecord = { deck_id: number; games: number; wins: number };
+
+// Every deck's games and wins, including decks that haven't played yet.
+export async function getDeckRecords(): Promise<DeckRecord[]> {
+  const db = await getDb();
+  return db.getAllAsync<DeckRecord>(`
+    SELECT d.id AS deck_id, COUNT(gp.id) AS games,
+           COALESCE(SUM(CASE WHEN gp.placement = 1 THEN 1 ELSE 0 END), 0) AS wins
+    FROM decks d
+    LEFT JOIN game_players gp ON gp.deck_id = d.id
+    GROUP BY d.id
+  `);
 }
 
 // Games each deck has appeared in, keyed by deck id.
