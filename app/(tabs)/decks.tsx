@@ -78,7 +78,7 @@ export default function DecksScreen() {
 
 				{rows.length === 0 ?
 					<Txt style={styles.empty}>
-						{filter === 'mine' ? 'no decks yet — start one below.' : 'no decks yet.'}
+						{filter === 'mine' ? 'no decks yet — add one below.' : 'no decks yet.'}
 					</Txt>
 				:	rows.map((row, index) => (
 						<Pressable
@@ -106,7 +106,7 @@ export default function DecksScreen() {
 				}
 
 				<View style={styles.gap} />
-				<PenButton label='+ start a new deck' onPress={() => setAdding(true)} />
+				<PenButton label='+ add a new deck' onPress={() => setAdding(true)} />
 			</ScrollView>
 
 			<NewDeckSheet visible={adding} onClose={() => setAdding(false)} onSave={handleSave} />
