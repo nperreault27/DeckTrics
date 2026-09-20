@@ -10,7 +10,6 @@ import {
 	onRules,
 	RULE_SPACING,
 	screenPadding,
-	wrapOnRules,
 } from '@/lib/notebook';
 import { useDecksStore } from '@/store/useDecksStore';
 import { NewDeckSheet } from '@/components/decks/NewDeckSheet';
@@ -23,8 +22,6 @@ type Filter = 'mine' | 'all';
 
 // In a four-player pod an even share of wins is 25%: above it is written in blue, below in red.
 const PAR_WIN_RATE = 100 / POD_SIZE;
-// A deck needs this many games before the margin note calls it out.
-const NOTE_MIN_GAMES = 3;
 
 type DeckRow = Deck & { games: number; wins: number; rate: number };
 
@@ -54,10 +51,6 @@ export default function DecksScreen() {
 		.sort(
 			(a, b) => Number(b.games > 0) - Number(a.games > 0) || b.rate - a.rate || b.games - a.games,
 		);
-
-	const struggling = rows
-		.filter((row) => row.isUsers && row.games >= NOTE_MIN_GAMES && row.rate < PAR_WIN_RATE)
-		.sort((a, b) => a.rate - b.rate)[0];
 
 	const handleSave = async (name: string, commander: string) => {
 		await addDeck(name, commander, true);
@@ -112,12 +105,6 @@ export default function DecksScreen() {
 					))
 				}
 
-				<View style={styles.gap} />
-				{struggling && filter === 'mine' && (
-					<Txt style={styles.note}>
-						note: {struggling.name.split(' ')[0]} needs more interaction, or a different table
-					</Txt>
-				)}
 				<View style={styles.gap} />
 				<PenButton label='+ start a new deck' onPress={() => setAdding(true)} />
 			</ScrollView>
@@ -183,6 +170,4 @@ const styles = StyleSheet.create({
 	rateColumn: { alignItems: 'flex-end', marginLeft: 8 },
 	rate: onRules(fonts.caveat700, 28),
 	record: { ...hangOnRules(fonts.kalam300, 12), color: ink.faint },
-
-	note: { ...wrapOnRules(fonts.caveat500, 18), color: ink.red },
 });

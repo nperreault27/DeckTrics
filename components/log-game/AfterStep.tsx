@@ -1,10 +1,11 @@
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Tag } from '@/lib/db';
 import {
 	fonts,
-	handDrawnRadiusSmall,
 	ink,
 	onRules,
+	overhang,
 	RULE_SPACING,
 	screenPadding,
 	wrapOnRules,
@@ -12,6 +13,7 @@ import {
 import { shortReason } from '@/lib/reasons';
 import { Txt } from '@/components/notebook/Hand';
 import { PenButton } from '@/components/notebook/PenButton';
+import { PenLoop } from '@/components/notebook/PenLoop';
 import { RuledPaper } from '@/components/notebook/RuledPaper';
 import { SectionTitle } from '@/components/notebook/SectionTitle';
 import { ordinal, placementOf, Seat } from './model';
@@ -26,7 +28,11 @@ type Props = {
 	error: string | null;
 };
 
+const CHIP_SIZE = 19;
+
 export function AfterStep({ seats, commentTags, selectedTagIds, setSelectedTagIds, onSave, saving, error }: Props) {
+	// Chip widths, measured so a circled one can be ringed to fit its own word.
+	const [chipWidths, setChipWidths] = useState<Record<number, number>>({});
 	const winner = seats.find((seat) => seat.won);
 	const selected = new Set(selectedTagIds);
 	const ranked = seats
@@ -53,10 +59,30 @@ export function AfterStep({ seats, commentTags, selectedTagIds, setSelectedTagId
 					const on = selected.has(tag.id);
 					return (
 						<Pressable key={tag.id} style={styles.chip} onPress={() => toggle(tag.id)}>
-							{on && <View style={styles.circle} />}
-							<Txt style={[styles.chipText, { color: on ? ink.blue : ink.faint }]}>
-								{tag.label.toLowerCase()}
-							</Txt>
+							<View
+								style={styles.chipWord}
+								onLayout={(event) => {
+									// Read the width here, not inside the updater: the event is
+									// recycled as soon as this handler returns, and the updater
+									// runs later, by which point nativeEvent is null.
+									const measured = event.nativeEvent.layout.width;
+									setChipWidths((w) =>
+										w[tag.id] === measured ? w : { ...w, [tag.id]: measured },
+									);
+								}}>
+								{on && (
+									<PenLoop
+										width={(chipWidths[tag.id] ?? 0) - overhang(CHIP_SIZE)}
+										fontFamily={fonts.caveat500}
+										fontSize={CHIP_SIZE}
+										color={ink.red}
+										gap={2}
+									/>
+								)}
+								<Txt style={[styles.chipText, { color: on ? ink.red : ink.faint }]}>
+									{tag.label.toLowerCase()}
+								</Txt>
+							</View>
 						</Pressable>
 					);
 				})}
@@ -93,20 +119,13 @@ const styles = StyleSheet.create({
 	body: { ...wrapOnRules(fonts.kalam300, 14), color: ink.body },
 	error: { ...wrapOnRules(fonts.caveat500, 20), color: ink.red },
 
-	// One chip row per ruled line; a circled chip gets a pen loop drawn around its word.
-	chips: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 6 },
-	chip: { height: RULE_SPACING, paddingHorizontal: 10 },
-	circle: {
-		...handDrawnRadiusSmall,
-		position: 'absolute',
-		left: 0,
-		right: 0,
-		top: 3,
-		bottom: -1,
-		borderWidth: 2,
-		borderColor: ink.blue,
-	},
-	chipText: onRules(fonts.caveat500, 19),
+	// Two ruled lines per chip row: a circled chip has a pen loop drawn round its word, and the
+	// loop is a good deal taller than the writing. The side padding gives it room to overhang
+	// without reaching into the chip alongside.
+	chips: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 4 },
+	chip: { height: RULE_SPACING * 2, paddingHorizontal: 20 },
+	chipWord: { alignSelf: 'flex-start' },
+	chipText: onRules(fonts.caveat500, CHIP_SIZE),
 
 	resultRow: { flexDirection: 'row', alignItems: 'flex-start', height: RULE_SPACING },
 	placement: { width: 44, ...onRules(fonts.caveat700, 20) },

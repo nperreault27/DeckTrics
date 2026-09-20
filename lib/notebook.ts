@@ -104,6 +104,15 @@ export function wrapOnRules(fontFamily: string, fontSize: number) {
 	return { fontFamily, fontSize, lineHeight: RULE_SPACING, marginTop: shift, marginBottom: -shift };
 }
 
+// Where the letters actually sit inside a one-line onRules() box, measured down from the top of
+// it: the top of the capitals and the bottom of the descenders. What you need to ring a word
+// rather than its line box, which is taller than the writing.
+export function glyphBand(fontFamily: string, fontSize: number) {
+	const { capHeight, descent } = fontFamily.startsWith('Caveat') ? METRICS.caveat : METRICS.kalam;
+	const baseline = RULE_SPACING - 1 - BASELINE_LIFT;
+	return { top: baseline - capHeight * fontSize, bottom: baseline + descent * fontSize };
+}
+
 export const labelText = {
 	...onRules(fonts.kalam700, 12),
 	letterSpacing: 1.8,

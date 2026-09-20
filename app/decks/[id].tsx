@@ -16,8 +16,10 @@ import {
 	type TurnOrderWinRate,
 } from '@/lib/db';
 import { fonts, ink, onRules, overhang, RULE_SPACING, screenPadding } from '@/lib/notebook';
+import { pickNote } from '@/lib/marginNotes';
 import { useDecksStore } from '@/store/useDecksStore';
 import { Txt } from '@/components/notebook/Hand';
+import { MarginNote } from '@/components/notebook/MarginNote';
 import { PageHead } from '@/components/notebook/PageHead';
 import { ReasonColumns } from '@/components/notebook/ReasonColumns';
 import { Rule, RuledPaper } from '@/components/notebook/RuledPaper';
@@ -28,6 +30,9 @@ import { ordinal } from '@/components/log-game/model';
 
 // Winning at least half the games an opponent was at the table reads as a good matchup.
 const GOOD_MATCHUP = 50;
+
+// A matchup or a reason needs this many games behind it before the margin note calls it out.
+const NOTE_MIN_GAMES = 3;
 
 const pct = (wins: number, games: number) => (games > 0 ? Math.round((wins / games) * 100) : 0);
 
@@ -82,6 +87,29 @@ export default function DeckScreen() {
 
 	const oneDecimal = (value: number | null | undefined) => (value ? value.toFixed(1) : '—');
 
+	// What the page itself says, for the margin note to pick from.
+	const worstSeat = seats.filter((seat) => seat.games > 0).sort((a, b) => a.rate - b.rate)[0];
+	const badMatchup = sortedMatchups
+		.filter((m) => m.games >= NOTE_MIN_GAMES && pct(m.wins, m.games) < GOOD_MATCHUP)
+		.slice(-1)[0];
+	const topLoss = loseReasons.filter((reason) => reason.count >= 2)[0];
+	const topComment = sortedComments[0];
+	const slowLoss =
+		avgTurns?.avg_turns_to_win != null &&
+		avgTurns?.avg_turns_to_lose != null &&
+		avgTurns.avg_turns_to_lose > avgTurns.avg_turns_to_win;
+
+	const note = pickNote('deck', [
+		worstSeat &&
+			worstSeat.rate === 0 &&
+			`never won a game from seat ${worstSeat.seat} with this one`,
+		badMatchup &&
+			`${badMatchup.opponent_deck_name} has this deck's number — ${badMatchup.wins} of ${badMatchup.games}`,
+		topLoss && `${topLoss.label.toLowerCase()} keeps ending it. ${topLoss.count} times now.`,
+		topComment && `the table keeps writing "${topComment.label.toLowerCase()}" next to this one`,
+		slowLoss && 'it wins fast or it loses slow. no middle.',
+	]);
+
 	return (
 		<View style={styles.screen}>
 			<PageHead
@@ -95,7 +123,10 @@ export default function DeckScreen() {
 				<RuledPaper margin />
 
 				{games === 0 ?
-					<Txt style={styles.empty}>no games with this deck yet.</Txt>
+					<View>
+						<Txt style={styles.empty}>no games with this deck yet.</Txt>
+						<MarginNote prefix='ps.'>{pickNote('deck-empty')}</MarginNote>
+					</View>
 				:	<>
 						<SectionTitle>Win rate</SectionTitle>
 						<View style={styles.hero}>
@@ -180,6 +211,8 @@ export default function DeckScreen() {
 								))}
 							</>
 						)}
+
+						<MarginNote prefix='ps'>{note}</MarginNote>
 					</>
 				}
 			</ScrollView>

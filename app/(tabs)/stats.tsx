@@ -17,11 +17,15 @@ import { Rule, RuledPaper } from '@/components/notebook/RuledPaper';
 import { SectionTitle } from '@/components/notebook/SectionTitle';
 import { Tally } from '@/components/notebook/Tally';
 import { ReasonColumns } from '@/components/notebook/ReasonColumns';
-import { sessionNote } from '@/lib/marginNotes';
-import { fonts, ink, onRules, RULE_SPACING, screenPadding, wrapOnRules } from '@/lib/notebook';
+import { MarginNote } from '@/components/notebook/MarginNote';
+import { pickNote } from '@/lib/marginNotes';
+import { fonts, ink, onRules, RULE_SPACING, screenPadding } from '@/lib/notebook';
 
 // In a four-player pod an even share of wins is 25%; below that is written in red.
 const PAR_WIN_RATE = 100 / POD_SIZE;
+
+// A seat, deck or reason needs this many games behind it before the margin note calls it out.
+const NOTE_MIN_GAMES = 3;
 
 export default function StatsScreen() {
 	const [deckStats, setDeckStats] = useState<DeckWinStats[]>([]);
@@ -50,7 +54,12 @@ export default function StatsScreen() {
 
 	const seats = Array.from({ length: POD_SIZE }, (_, i) => {
 		const row = seatRates.find((item) => item.turn_order === i + 1);
-		return { seat: i + 1, wins: row?.wins ?? 0, winRate: Math.round(row?.win_pct ?? 0) };
+		return {
+			seat: i + 1,
+			games: row?.games ?? 0,
+			wins: row?.wins ?? 0,
+			winRate: Math.round(row?.win_pct ?? 0),
+		};
 	});
 	const bestSeatRate = Math.max(...seats.map((seat) => seat.winRate));
 
@@ -63,6 +72,25 @@ export default function StatsScreen() {
 			winRate: deck.games > 0 ? Math.round((deck.wins / deck.games) * 100) : 0,
 		}))
 		.sort((a, b) => b.winRate - a.winRate || b.wins - a.wins);
+
+	// What the page itself says, for the margin note to pick from.
+	const deadSeat = seats.find((seat) => seat.games >= NOTE_MIN_GAMES && seat.wins === 0);
+	const bestSeat = seats.filter((seat) => seat.games > 0).sort((a, b) => b.winRate - a.winRate)[0];
+	const bestDeck = deckRecords.filter((deck) => deck.wins + deck.losses >= NOTE_MIN_GAMES)[0];
+	const topLoss = loseReasons.filter((reason) => reason.count >= NOTE_MIN_GAMES)[0];
+
+	const note = pickNote('stats', [
+		deadSeat && `0 for ${deadSeat.games} in seat ${deadSeat.seat}. that seat is cursed.`,
+		bestSeat &&
+			bestSeat.winRate > PAR_WIN_RATE &&
+			`seat ${bestSeat.seat} is carrying me at ${bestSeat.winRate}%. call it early.`,
+		bestDeck &&
+			(bestDeck.winRate > PAR_WIN_RATE ?
+				`${bestDeck.name} is the only deck pulling its weight (${bestDeck.winRate}%)`
+			:	`even ${bestDeck.name} is under water at ${bestDeck.winRate}%. rebuild something.`),
+		topLoss && `lost to ${topLoss.label.toLowerCase()} ${topLoss.count}× now. maybe pack an answer.`,
+		totalGames >= 10 && `${totalGames} games written down and still no idea what I'm doing`,
+	]);
 
 	return (
 		<ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
@@ -112,8 +140,7 @@ export default function StatsScreen() {
 					<View style={styles.gap} />
 					<ReasonColumns winTitle='How I win' wins={winReasons} loseTitle='How I lose' losses={loseReasons} />
 
-					<View style={styles.gap} />
-					<Txt style={styles.note}>note: {sessionNote}</Txt>
+					<MarginNote>{note}</MarginNote>
 				</>
 			}
 		</ScrollView>
@@ -135,7 +162,4 @@ const styles = StyleSheet.create({
 	deckName: { flex: 1, ...onRules(fonts.caveat600, 22), color: ink.ink },
 	record: { width: 64, textAlign: 'right', ...onRules(fonts.caveat500, 20), color: ink.body },
 	deckRate: { width: 60, textAlign: 'right', ...onRules(fonts.caveat700, 22) },
-
-
-	note: { ...wrapOnRules(fonts.caveat500, 18), color: ink.red },
 });
